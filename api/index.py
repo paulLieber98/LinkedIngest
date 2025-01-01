@@ -1,11 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
+import json
 
 app = FastAPI()
 
-class ProfileRequest(BaseModel):
+class URLAnalysisRequest(BaseModel):
     url: str
     tone: str = "Professional"
     context: Optional[str] = None
@@ -17,18 +18,38 @@ async def health_check():
         "timestamp": datetime.now().isoformat()
     }
 
-@app.post("/api/analyze")
-async def analyze_profile(request: ProfileRequest):
+@app.post("/api/analyze_url")
+async def analyze_url(request: URLAnalysisRequest):
     try:
+        # For now, return a mock response
         return {
             "success": True,
-            "message": "Profile analysis request received",
-            "data": {
-                "url": request.url,
-                "tone": request.tone,
-                "context": request.context,
-                "timestamp": datetime.now().isoformat()
-            }
+            "summary": f"""Profile Summary:
+• LinkedIn URL: {request.url}
+• Tone: {request.tone}
+• Context: {request.context if request.context else 'None provided'}
+
+This is a mock summary. The actual implementation will analyze the LinkedIn profile and generate a personalized summary."""
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/analyze_pdf")
+async def analyze_pdf(
+    file: UploadFile = File(...),
+    tone: str = Form("Professional"),
+    context: Optional[str] = Form(None)
+):
+    try:
+        # For now, return a mock response
+        return {
+            "success": True,
+            "summary": f"""Profile Summary:
+• File: {file.filename}
+• Tone: {tone}
+• Context: {context if context else 'None provided'}
+
+This is a mock summary. The actual implementation will analyze the PDF and generate a personalized summary."""
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
