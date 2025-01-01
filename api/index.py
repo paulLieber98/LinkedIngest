@@ -132,10 +132,21 @@ async def root():
 
 @app.get("/api/health")
 async def health_check():
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat()
-    }
+    """Health check endpoint"""
+    try:
+        # Check if OpenAI API key is configured
+        api_key_status = "configured" if openai.api_key else "not configured"
+        
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "api_version": "1.0.0",
+            "openai_api": api_key_status,
+            "environment": os.getenv("VERCEL_ENV", "development")
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
 @app.post("/api/analyze_url")
 async def analyze_url(request: URLAnalysisRequest):
