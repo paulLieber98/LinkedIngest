@@ -14,11 +14,10 @@ import {
   TabPanel,
   HStack,
   Textarea,
-  Select,
   Heading,
 } from '@chakra-ui/react';
 import { useDropzone } from 'react-dropzone';
-import { FiUpload, FiCopy, FiPlay, FiX, FiSettings } from 'react-icons/fi';
+import { FiUpload, FiCopy, FiPlay, FiX } from 'react-icons/fi';
 
 function Home() {
   const [url, setUrl] = useState('');
@@ -26,8 +25,6 @@ function Home() {
   const [summary, setSummary] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
-  const [tone, setTone] = useState('professional');
-  const [context, setContext] = useState('');
   const toast = useToast();
 
   const onDrop = useCallback((acceptedFiles) => {
@@ -82,10 +79,6 @@ function Home() {
 
       if (activeTab === 1 && file) {
         formData.append('file', file);
-        formData.append('tone', tone);
-        if (context.trim()) {
-          formData.append('context', context);
-        }
         response = await fetch(`${API_BASE_URL}/api/analyze_pdf`, {
           method: 'POST',
           body: formData,
@@ -101,11 +94,7 @@ function Home() {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          body: JSON.stringify({ 
-            url,
-            tone,
-            context: context.trim() || undefined
-          }),
+          body: JSON.stringify({ url }),
           mode: 'cors'
         });
       } else {
@@ -155,66 +144,6 @@ function Home() {
     }
   };
 
-  const CustomizationOptions = () => (
-    <Box 
-      mt={6} 
-      p={6} 
-      borderRadius="lg"
-      border="1px"
-      borderColor="gray.200"
-      bg="white"
-      position="relative"
-      boxShadow="sm"
-    >
-      <Box
-        position="absolute"
-        top="-14px"
-        left="50%"
-        transform="translateX(-50%)"
-        bg="white"
-        px={4}
-        py={1}
-        borderRadius="full"
-        border="1px"
-        borderColor="gray.200"
-      >
-        <HStack spacing={2} color="gray.600">
-          <FiSettings />
-          <Text fontWeight="medium">Customization Options</Text>
-        </HStack>
-      </Box>
-
-      <VStack spacing={4}>
-        <Select
-          value={tone}
-          onChange={(e) => setTone(e.target.value)}
-          bg="white"
-          size="lg"
-          borderColor="gray.300"
-          _hover={{ borderColor: "gray.400" }}
-        >
-          <option value="professional">Professional</option>
-          <option value="casual">Casual</option>
-          <option value="friendly">Friendly</option>
-          <option value="formal">Formal</option>
-          <option value="enthusiastic">Enthusiastic</option>
-        </Select>
-
-        <Textarea
-          placeholder="Add context for personalization (optional)"
-          value={context}
-          onChange={(e) => setContext(e.target.value)}
-          bg="white"
-          size="lg"
-          rows={4}
-          resize="vertical"
-          borderColor="gray.300"
-          _hover={{ borderColor: "gray.400" }}
-        />
-      </VStack>
-    </Box>
-  );
-
   return (
     <Container maxW="container.md" py={8}>
       <VStack spacing={8} align="stretch">
@@ -243,65 +172,59 @@ function Home() {
 
           <TabPanels>
             <TabPanel>
-              <VStack spacing={4}>
-                <Input
-                  placeholder="Enter LinkedIn profile URL"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  size="lg"
-                  bg="white"
-                  borderColor="gray.300"
-                  _hover={{ borderColor: "gray.400" }}
-                />
-                <CustomizationOptions />
-              </VStack>
+              <Input
+                placeholder="Enter LinkedIn profile URL"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                size="lg"
+                bg="white"
+                borderColor="gray.300"
+                _hover={{ borderColor: "gray.400" }}
+              />
             </TabPanel>
 
             <TabPanel>
-              <VStack spacing={4}>
-                <Box
-                  {...getRootProps()}
-                  p={10}
-                  border="2px dashed"
-                  borderColor={isDragActive ? 'blue.400' : file ? 'green.400' : 'gray.200'}
-                  borderRadius="lg"
-                  textAlign="center"
-                  bg={isDragActive ? 'blue.50' : file ? 'green.50' : 'white'}
-                  cursor="pointer"
-                  transition="all 0.2s"
-                  _hover={{ 
-                    borderColor: file ? 'green.500' : 'blue.400', 
-                    bg: file ? 'green.100' : 'blue.50' 
-                  }}
-                  position="relative"
-                  w="100%"
-                >
-                  <input {...getInputProps()} />
-                  <VStack spacing={3}>
-                    <FiUpload size={24} color={file ? '#38A169' : '#4299E1'} />
-                    <Text color={file ? 'green.600' : 'gray.600'} fontWeight="medium">
-                      {file
-                        ? `Selected: ${file.name}`
-                        : isDragActive
-                        ? 'Drop the PDF here'
-                        : 'Drag & drop a PDF or click to select'}
-                    </Text>
-                    {file && (
-                      <Button
-                        size="sm"
-                        colorScheme="red"
-                        variant="ghost"
-                        leftIcon={<FiX />}
-                        onClick={handleRemoveFile}
-                        mt={2}
-                      >
-                        Remove File
-                      </Button>
-                    )}
-                  </VStack>
-                </Box>
-                <CustomizationOptions />
-              </VStack>
+              <Box
+                {...getRootProps()}
+                p={10}
+                border="2px dashed"
+                borderColor={isDragActive ? 'blue.400' : file ? 'green.400' : 'gray.200'}
+                borderRadius="lg"
+                textAlign="center"
+                bg={isDragActive ? 'blue.50' : file ? 'green.50' : 'white'}
+                cursor="pointer"
+                transition="all 0.2s"
+                _hover={{ 
+                  borderColor: file ? 'green.500' : 'blue.400', 
+                  bg: file ? 'green.100' : 'blue.50' 
+                }}
+                position="relative"
+                w="100%"
+              >
+                <input {...getInputProps()} />
+                <VStack spacing={3}>
+                  <FiUpload size={24} color={file ? '#38A169' : '#4299E1'} />
+                  <Text color={file ? 'green.600' : 'gray.600'} fontWeight="medium">
+                    {file
+                      ? `Selected: ${file.name}`
+                      : isDragActive
+                      ? 'Drop the PDF here'
+                      : 'Drag & drop a PDF or click to select'}
+                  </Text>
+                  {file && (
+                    <Button
+                      size="sm"
+                      colorScheme="red"
+                      variant="ghost"
+                      leftIcon={<FiX />}
+                      onClick={handleRemoveFile}
+                      mt={2}
+                    >
+                      Remove File
+                    </Button>
+                  )}
+                </VStack>
+              </Box>
             </TabPanel>
           </TabPanels>
         </Tabs>
