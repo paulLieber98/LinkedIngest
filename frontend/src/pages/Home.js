@@ -89,7 +89,7 @@ function Home() {
       const formData = new FormData();
       const API_BASE_URL = window.location.hostname === 'localhost' 
         ? 'http://localhost:3000'
-        : `https://${window.location.hostname}`;
+        : 'https://linkedingest.com';
 
       if (activeTab === 1 && file) {
         formData.append('file', file);
@@ -102,7 +102,8 @@ function Home() {
           body: formData,
           headers: {
             'Accept': 'application/json'
-          }
+          },
+          mode: 'cors'
         });
       } else if (activeTab === 0 && url) {
         response = await fetch(`${API_BASE_URL}/api/analyze_url`, {
@@ -115,7 +116,8 @@ function Home() {
             url,
             tone,
             context: context.trim() || undefined
-          })
+          }),
+          mode: 'cors'
         });
       } else {
         throw new Error(activeTab === 0 
