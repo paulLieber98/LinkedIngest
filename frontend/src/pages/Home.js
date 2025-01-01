@@ -87,9 +87,7 @@ function Home() {
     try {
       let response;
       const formData = new FormData();
-      const API_BASE_URL = process.env.NODE_ENV === 'production' 
-        ? 'https://www.linkedingest.com'
-        : 'http://localhost:3000';
+      const API_BASE_URL = 'https://linkedingest.com';
 
       if (activeTab === 1 && file) {
         formData.append('file', file);
@@ -100,6 +98,7 @@ function Home() {
         response = await fetch(`${API_BASE_URL}/api/analyze_pdf`, {
           method: 'POST',
           body: formData,
+          credentials: 'include'
         });
       } else if (activeTab === 0 && url) {
         response = await fetch(`${API_BASE_URL}/api/analyze_url`, {
@@ -112,6 +111,7 @@ function Home() {
             tone,
             context: context.trim() || undefined
           }),
+          credentials: 'include'
         });
       } else {
         throw new Error(activeTab === 0 
@@ -120,7 +120,8 @@ function Home() {
       }
 
       if (!response.ok) {
-        throw new Error('Failed to analyze profile');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to analyze profile');
       }
 
       const data = await response.json();
