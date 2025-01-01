@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
@@ -25,12 +26,41 @@ class URLAnalysisRequest(BaseModel):
     tone: str = "Professional"
     context: Optional[str] = None
 
+@app.get("/")
+async def root():
+    return {
+        "message": "LinkedIngest API is running",
+        "version": "1.0.0",
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/api")
+async def api_root():
+    return {
+        "message": "LinkedIngest API is running",
+        "version": "1.0.0",
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat()
+    }
+
 @app.get("/api/health")
 async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat()
     }
+
+@app.options("/api/{path:path}")
+async def options_route(request: Request):
+    return JSONResponse(
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        },
+    )
 
 @app.post("/api/analyze_url")
 async def analyze_url(request: URLAnalysisRequest):

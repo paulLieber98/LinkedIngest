@@ -98,20 +98,22 @@ function Home() {
         response = await fetch(`${API_BASE_URL}/api/analyze_pdf`, {
           method: 'POST',
           body: formData,
-          credentials: 'include'
+          headers: {
+            'Accept': 'application/json'
+          }
         });
       } else if (activeTab === 0 && url) {
         response = await fetch(`${API_BASE_URL}/api/analyze_url`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json'
           },
           body: JSON.stringify({ 
             url,
             tone,
             context: context.trim() || undefined
-          }),
-          credentials: 'include'
+          })
         });
       } else {
         throw new Error(activeTab === 0 
@@ -120,7 +122,7 @@ function Home() {
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to analyze profile' }));
         throw new Error(errorData.detail || 'Failed to analyze profile');
       }
 
@@ -134,6 +136,7 @@ function Home() {
         isClosable: true,
       });
     } catch (error) {
+      console.error('API Error:', error);
       toast({
         title: 'Error',
         description: error.message,
