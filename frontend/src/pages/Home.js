@@ -30,16 +30,6 @@ function Home() {
   const [context, setContext] = useState('');
   const toast = useToast();
 
-  const handleContextChange = (e) => {
-    if (contextTimeoutRef.current) {
-      clearTimeout(contextTimeoutRef.current);
-    }
-    
-    contextTimeoutRef.current = setTimeout(() => {
-      setContext(e.target.value);
-    }, 300);
-  };
-
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles.length > 0) {
       setFile(acceptedFiles[0]);
