@@ -5,22 +5,70 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 import json
+import os
+import openai
+from bs4 import BeautifulSoup
+import httpx
+import re
 
 app = FastAPI()
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Initialize OpenAI client
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
 class URLAnalysisRequest(BaseModel):
     url: str
-    tone: str = "Professional"
-    context: Optional[str] = None
+
+def extract_profile_info(html_content):
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Extract text content
+    text_content = soup.get_text(separator=' ', strip=True)
+    
+    # Basic cleaning
+    text_content = re.sub(r'\s+', ' ', text_content)
+    text_content = text_content.strip()
+    
+    return text_content
+
+def analyze_with_gpt(profile_text):
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are an expert at analyzing LinkedIn profiles and creating concise, informative summaries. 
+                    Focus on extracting and highlighting key professional details including:
+                    - Current role and company
+                    - Key skills and expertise
+                    - Professional experience highlights
+                    - Educational background
+                    - Notable achievements
+                    
+                    Format the summary in a clear, bullet-point style that's easy to read and understand.
+                    Be direct and professional in your analysis."""
+                },
+                {
+                    "role": "user",
+                    "content": f"Please analyze this LinkedIn profile content and create a professional summary:\n\n{profile_text}"
+                }
+            ],
+            temperature=0.7,
+            max_tokens=1000
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error in GPT analysis: {str(e)}")
 
 @app.get("/")
 @app.get("/api")
@@ -43,35 +91,47 @@ async def health_check():
 @app.post("/api/analyze_url")
 async def analyze_url(request: URLAnalysisRequest):
     try:
-        # For now, return a mock response
+        # Validate URL
+        if not request.url.startswith(('http://', 'https://')):
+            request.url = 'https://' + request.url
+
+        if 'linkedin.com' not in request.url:
+            raise HTTPException(status_code=400, detail="Please provide a valid LinkedIn URL")
+
+        # Fetch profile content
+        async with httpx.AsyncClient() as client:
+            response = await client.get(request.url)
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail="Failed to fetch LinkedIn profile")
+
+        # Extract profile information
+        profile_text = extract_profile_info(response.text)
+        
+        # Analyze with GPT
+        summary = analyze_with_gpt(profile_text)
+
         return {
             "success": True,
-            "summary": f"""Profile Summary:
-• LinkedIn URL: {request.url}
-• Tone: {request.tone}
-• Context: {request.context if request.context else 'None provided'}
-
-This is a mock summary. The actual implementation will analyze the LinkedIn profile and generate a personalized summary."""
+            "summary": summary
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/analyze_pdf")
-async def analyze_pdf(
-    file: UploadFile = File(...),
-    tone: str = Form("Professional"),
-    context: Optional[str] = Form(None)
-):
+async def analyze_pdf(file: UploadFile = File(...)):
     try:
-        # For now, return a mock response
+        # Read PDF content
+        content = await file.read()
+        
+        # Convert to text (simplified for now)
+        text_content = content.decode('utf-8', errors='ignore')
+        
+        # Analyze with GPT
+        summary = analyze_with_gpt(text_content)
+
         return {
             "success": True,
-            "summary": f"""Profile Summary:
-• File: {file.filename}
-• Tone: {tone}
-• Context: {context if context else 'None provided'}
-
-This is a mock summary. The actual implementation will analyze the PDF and generate a personalized summary."""
+            "summary": summary
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
