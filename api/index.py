@@ -3,7 +3,7 @@ from datetime import datetime
 
 app = FastAPI()
 
-@app.get("/api")
+@app.get("/")
 async def root():
     return {
         "message": "Welcome to LinkedIngest API!",
@@ -11,7 +11,15 @@ async def root():
         "timestamp": datetime.now().isoformat()
     }
 
-@app.get("/api/health")
+@app.get("/api")
+async def api():
+    return {
+        "message": "Welcome to LinkedIngest API!",
+        "status": "online",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/health")
 async def health_check():
     return {
         "status": "healthy",
