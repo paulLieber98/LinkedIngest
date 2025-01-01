@@ -10,6 +10,8 @@ import openai
 from bs4 import BeautifulSoup
 import httpx
 import re
+from io import BytesIO
+from PyPDF2 import PdfReader
 
 app = FastAPI()
 
@@ -39,6 +41,30 @@ def extract_profile_info(html_content):
     text_content = text_content.strip()
     
     return text_content
+
+def extract_text_from_pdf(pdf_content):
+    try:
+        # Create a BytesIO object from the PDF content
+        pdf_file = BytesIO(pdf_content)
+        
+        # Create a PDF reader object
+        pdf_reader = PdfReader(pdf_file)
+        
+        # Extract text from all pages
+        text_content = []
+        for page in pdf_reader.pages:
+            text_content.append(page.extract_text())
+        
+        # Join all pages with newlines
+        full_text = "\n".join(text_content)
+        
+        # Basic cleaning
+        full_text = re.sub(r'\s+', ' ', full_text)
+        full_text = full_text.strip()
+        
+        return full_text
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
 
 def analyze_with_gpt(profile_text):
     try:
@@ -123,8 +149,8 @@ async def analyze_pdf(file: UploadFile = File(...)):
         # Read PDF content
         content = await file.read()
         
-        # Convert to text (simplified for now)
-        text_content = content.decode('utf-8', errors='ignore')
+        # Extract text from PDF
+        text_content = extract_text_from_pdf(content)
         
         # Analyze with GPT
         summary = analyze_with_gpt(text_content)
@@ -134,6 +160,7 @@ async def analyze_pdf(file: UploadFile = File(...)):
             "summary": summary
         }
     except Exception as e:
+        print(f"Error in analyze_pdf: {str(e)}")  # Add debugging
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.options("/{full_path:path}")
