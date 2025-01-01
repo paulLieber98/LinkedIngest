@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -28,7 +28,6 @@ function Home() {
   const [activeTab, setActiveTab] = useState(0);
   const [tone, setTone] = useState('professional');
   const [context, setContext] = useState('');
-  const contextTimeoutRef = useRef(null);
   const toast = useToast();
 
   const handleContextChange = (e) => {
@@ -173,8 +172,9 @@ function Home() {
       borderRadius="lg"
       border="1px"
       borderColor="gray.200"
-      bg="gray.50"
+      bg="white"
       position="relative"
+      boxShadow="sm"
     >
       <Box
         position="absolute"
@@ -200,6 +200,8 @@ function Home() {
           onChange={(e) => setTone(e.target.value)}
           bg="white"
           size="lg"
+          borderColor="gray.300"
+          _hover={{ borderColor: "gray.400" }}
         >
           <option value="professional">Professional</option>
           <option value="casual">Casual</option>
@@ -216,6 +218,8 @@ function Home() {
           size="lg"
           rows={4}
           resize="vertical"
+          borderColor="gray.300"
+          _hover={{ borderColor: "gray.400" }}
         />
       </VStack>
     </Box>
@@ -225,9 +229,9 @@ function Home() {
     <Container maxW="container.md" py={8}>
       <VStack spacing={8} align="stretch">
         <Box textAlign="center">
-          <Text fontSize="4xl" fontWeight="bold" mb={2}>
+          <Heading as="h1" size="2xl" mb={2} color="gray.800">
             LinkedIngest
-          </Text>
+          </Heading>
           <Text fontSize="lg" color="gray.600">
             Transform LinkedIn profiles into LLM-friendly summaries
           </Text>
@@ -240,10 +244,11 @@ function Home() {
             setActiveTab(index);
             setSummary('');
           }}
+          isLazy
         >
           <TabList>
-            <Tab>LinkedIn URL</Tab>
-            <Tab>PDF Upload</Tab>
+            <Tab fontWeight="medium">LinkedIn URL</Tab>
+            <Tab fontWeight="medium">PDF Upload</Tab>
           </TabList>
 
           <TabPanels>
@@ -254,6 +259,9 @@ function Home() {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   size="lg"
+                  bg="white"
+                  borderColor="gray.300"
+                  _hover={{ borderColor: "gray.400" }}
                 />
                 <CustomizationOptions />
               </VStack>
@@ -266,9 +274,9 @@ function Home() {
                   p={10}
                   border="2px dashed"
                   borderColor={isDragActive ? 'blue.400' : file ? 'green.400' : 'gray.200'}
-                  borderRadius="md"
+                  borderRadius="lg"
                   textAlign="center"
-                  bg={isDragActive ? 'blue.50' : file ? 'green.50' : 'transparent'}
+                  bg={isDragActive ? 'blue.50' : file ? 'green.50' : 'white'}
                   cursor="pointer"
                   transition="all 0.2s"
                   _hover={{ 
@@ -276,11 +284,12 @@ function Home() {
                     bg: file ? 'green.100' : 'blue.50' 
                   }}
                   position="relative"
+                  w="100%"
                 >
                   <input {...getInputProps()} />
                   <VStack spacing={3}>
                     <FiUpload size={24} color={file ? '#38A169' : '#4299E1'} />
-                    <Text color={file ? 'green.600' : 'gray.600'}>
+                    <Text color={file ? 'green.600' : 'gray.600'} fontWeight="medium">
                       {file
                         ? `Selected: ${file.name}`
                         : isDragActive
@@ -314,20 +323,23 @@ function Home() {
           onClick={handleAnalyze}
           leftIcon={<FiPlay />}
           isDisabled={(activeTab === 0 && !url) || (activeTab === 1 && !file)}
+          w="100%"
         >
           Analyze Profile
         </Button>
 
         {summary && (
-          <Box position="relative">
+          <Box position="relative" bg="white" borderRadius="lg" boxShadow="sm" border="1px" borderColor="gray.200">
             <Textarea
               value={summary}
               readOnly
               minH="300px"
               p={4}
-              borderRadius="md"
+              borderRadius="lg"
               bg="gray.50"
               whiteSpace="pre-wrap"
+              borderColor="transparent"
+              _hover={{ borderColor: "transparent" }}
             />
             <Button
               position="absolute"
