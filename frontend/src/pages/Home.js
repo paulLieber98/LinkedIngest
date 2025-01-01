@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   Box,
   Container,
@@ -28,7 +28,18 @@ function Home() {
   const [activeTab, setActiveTab] = useState(0);
   const [tone, setTone] = useState('professional');
   const [context, setContext] = useState('');
+  const contextTimeoutRef = useRef(null);
   const toast = useToast();
+
+  const handleContextChange = (e) => {
+    if (contextTimeoutRef.current) {
+      clearTimeout(contextTimeoutRef.current);
+    }
+    
+    contextTimeoutRef.current = setTimeout(() => {
+      setContext(e.target.value);
+    }, 300);
+  };
 
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles.length > 0) {
@@ -188,8 +199,8 @@ function Home() {
 
         <Textarea
           placeholder="Add context for personalization (optional)"
-          value={context}
-          onChange={(e) => setContext(e.target.value)}
+          defaultValue={context}
+          onChange={handleContextChange}
           bg="white"
           size="lg"
           rows={4}
