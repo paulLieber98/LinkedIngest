@@ -87,7 +87,9 @@ function Home() {
     try {
       let response;
       const formData = new FormData();
-      const API_BASE_URL = 'https://linkedingest.com';
+      const API_BASE_URL = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3000'
+        : `https://${window.location.hostname}`;
 
       if (activeTab === 1 && file) {
         formData.append('file', file);
