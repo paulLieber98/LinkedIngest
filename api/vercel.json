@@ -1,14 +1,19 @@
 {
     "version": 2,
-    "functions": {
-        "index.py": {
-            "runtime": "python3.9"
+    "builds": [
+        {
+            "src": "index.py",
+            "use": "@vercel/python"
         }
-    },
+    ],
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "/index.py"
+            "dest": "index.py"
         }
-    ]
+    ],
+    "env": {
+        "PYTHONPATH": ".",
+        "MAX_BODY_SIZE": "10mb"
+    }
 } 
