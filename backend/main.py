@@ -7,10 +7,19 @@ from typing import Optional
 import os
 from dotenv import load_dotenv
 import openai
+from utils.profile_processor import ProfileProcessor
 
+# Load environment variables
 load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise ValueError("OPENAI_API_KEY environment variable is not set")
 
+# Initialize FastAPI app
 app = FastAPI(title="LinkedIngest API")
+
+# Initialize profile processor
+profile_processor = ProfileProcessor(OPENAI_API_KEY)
 
 # Configure CORS
 app.add_middleware(
@@ -45,9 +54,22 @@ async def analyze_profile_url(request: ProfileRequest):
         raise HTTPException(status_code=400, detail="URL is required")
     
     try:
-        # TODO: Implement profile extraction and summarization
-        summary = "Profile summary will be implemented here"
-        return {"summary": summary}
+        # Extract profile data
+        profile_data = profile_processor.extract_from_url(request.url)
+        
+        # Generate summary
+        summary = profile_processor.generate_summary(
+            profile_data,
+            tone=request.tone or "professional",
+            context=request.context
+        )
+        
+        return {
+            "summary": summary,
+            "profile_data": profile_data
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -61,9 +83,23 @@ async def analyze_profile_pdf(
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
     
     try:
-        # TODO: Implement PDF parsing and summarization
-        summary = "PDF summary will be implemented here"
-        return {"summary": summary}
+        # Read PDF content
+        content = await file.read()
+        
+        # Extract profile data
+        profile_data = profile_processor.extract_from_pdf(content)
+        
+        # Generate summary
+        summary = profile_processor.generate_summary(
+            profile_data,
+            tone=tone,
+            context=context
+        )
+        
+        return {
+            "summary": summary,
+            "profile_data": profile_data
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
