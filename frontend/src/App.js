@@ -4,12 +4,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Nav from './components/Nav';
 import Home from './pages/Home';
 import About from './pages/About';
-import { keyframes } from '@emotion/react';
-
-const gradientAnimation = keyframes`
-  0% { background-position: 0% 50% }
-  100% { background-position: 100% 50% }
-`;
 
 function App() {
   return (
@@ -19,20 +13,16 @@ function App() {
           minH="100vh"
           pt="60px"
           position="relative"
-          overflow="hidden"
-          _before={{
+          bgGradient="linear(to-br, blue.50, purple.50, blue.50)"
+          _after={{
             content: '""',
             position: 'fixed',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            bgGradient: 'linear(to-r, blue.50, purple.50, blue.50)',
-            backgroundSize: '200% 100%',
-            animation: `${gradientAnimation} 8s linear infinite`,
-            opacity: 0.6,
+            backdropFilter: 'blur(100px)',
             zIndex: -1,
-            filter: 'blur(20px)',
           }}
         >
           <Nav />

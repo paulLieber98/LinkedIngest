@@ -1,107 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Box,
+  Container,
   VStack,
-  Heading,
-  Text,
   Input,
   Button,
+  Text,
   useToast,
-  Select,
-  Textarea,
   Tabs,
   TabList,
   TabPanels,
   Tab,
   TabPanel,
-  Container,
-  Icon,
-  Progress,
   HStack,
-  Badge,
-  useColorModeValue,
-  Link,
+  Textarea,
+  Select,
+  Heading,
 } from '@chakra-ui/react';
 import { useDropzone } from 'react-dropzone';
-import { FiUpload, FiFile, FiCheck, FiX, FiLink, FiFileText, FiSettings, FiGithub } from 'react-icons/fi';
-import axios from 'axios';
-
-const API_URL = '/api';
+import { FiUpload, FiCopy, FiPlay, FiX, FiSettings } from 'react-icons/fi';
 
 function Home() {
   const [url, setUrl] = useState('');
+  const [file, setFile] = useState(null);
+  const [summary, setSummary] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
   const [tone, setTone] = useState('professional');
   const [context, setContext] = useState('');
-  const [summary, setSummary] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState(null);
   const toast = useToast();
 
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const accentColor = "blue.500";
-  const hoverBg = useColorModeValue('gray.50', 'gray.700');
-
-  const onDrop = async (acceptedFiles) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
-
-    if (file.type !== 'application/pdf') {
+  const onDrop = useCallback((acceptedFiles) => {
+    if (acceptedFiles.length > 0) {
+      setFile(acceptedFiles[0]);
+      setSummary('');
       toast({
-        title: 'Invalid file type',
-        description: 'Please upload a PDF file of your LinkedIn profile',
-        status: 'error',
-        duration: 3000,
-      });
-      return;
-    }
-
-    setUploadedFile(file);
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      toast({
-        title: 'File too large',
-        description: 'Please upload a PDF file smaller than 10MB',
-        status: 'error',
-        duration: 3000,
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('tone', tone);
-      if (context.trim()) {
-        formData.append('context', context);
-      }
-
-      const response = await axios.post(`${API_URL}/analyze/pdf`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      setSummary(response.data.summary);
-      toast({
-        title: 'Success',
-        description: 'Profile analyzed successfully',
+        title: 'File uploaded',
+        description: `${acceptedFiles[0].name} is ready for analysis. Click 'Analyze Profile' to proceed.`,
         status: 'success',
         duration: 3000,
+        isClosable: true,
       });
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: 'Error',
-        description: error.response?.data?.detail || 'Error processing PDF file',
-        status: 'error',
-        duration: 5000,
-      });
-      setSummary('');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [toast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -109,355 +50,275 @@ function Home() {
       'application/pdf': ['.pdf'],
     },
     multiple: false,
+    noClick: false,
+    noKeyboard: false,
   });
 
-  const handleUrlSubmit = async () => {
-    if (!url) {
+  const handleRemoveFile = (e) => {
+    e.stopPropagation();
+    setFile(null);
+    setSummary('');
+  };
+
+  const handleAnalyze = async () => {
+    if (!file && activeTab === 1) {
       toast({
-        title: 'Error',
-        description: 'Please enter a LinkedIn URL',
-        status: 'error',
+        title: 'No file selected',
+        description: 'Please upload a PDF file first',
+        status: 'warning',
         duration: 3000,
+        isClosable: true,
       });
       return;
     }
 
+    setIsLoading(true);
     try {
-      setLoading(true);
-      const response = await axios.post(`${API_URL}/analyze/url`, {
-        url,
-        tone,
-        context: context.trim() || undefined,
-      });
-      setSummary(response.data.summary);
+      let response;
+      const formData = new FormData();
+
+      if (activeTab === 1 && file) {
+        formData.append('file', file);
+        formData.append('tone', tone);
+        if (context.trim()) {
+          formData.append('context', context);
+        }
+        response = await fetch('/api/analyze_pdf', {
+          method: 'POST',
+          body: formData,
+        });
+      } else if (activeTab === 0 && url) {
+        response = await fetch('/api/analyze_url', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            url,
+            tone,
+            context: context.trim() || undefined
+          }),
+        });
+      } else {
+        throw new Error(activeTab === 0 
+          ? 'Please provide a LinkedIn URL' 
+          : 'Please upload a PDF file');
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to analyze profile');
+      }
+
+      const data = await response.json();
+      setSummary(data.summary);
       toast({
-        title: 'Success',
-        description: 'Profile analyzed successfully',
+        title: 'Analysis Complete',
+        description: 'Profile has been successfully analyzed',
         status: 'success',
         duration: 3000,
+        isClosable: true,
       });
     } catch (error) {
-      console.error('Error:', error);
       toast({
         title: 'Error',
-        description: error.response?.data?.detail || 'Something went wrong',
+        description: error.message,
         status: 'error',
-        duration: 3000,
+        duration: 5000,
+        isClosable: true,
       });
-      setSummary('');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  return (
-    <Container maxW="container.md" py={10}>
-      <VStack spacing={8} align="stretch">
-        <Box 
-          textAlign="center" 
-          mb={8} 
-          p={6}
-          bg={useColorModeValue('blue.50', 'blue.900')}
-          borderRadius="xl"
+  const handleCopy = () => {
+    if (summary) {
+      navigator.clipboard.writeText(summary);
+      toast({
+        title: 'Copied',
+        description: 'Summary copied to clipboard',
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const CustomizationOptions = () => (
+    <Box 
+      mt={6} 
+      p={6} 
+      borderRadius="lg"
+      border="1px"
+      borderColor="gray.200"
+      bg="gray.50"
+      position="relative"
+    >
+      <Box
+        position="absolute"
+        top="-14px"
+        left="50%"
+        transform="translateX(-50%)"
+        bg="white"
+        px={4}
+        py={1}
+        borderRadius="full"
+        border="1px"
+        borderColor="gray.200"
+      >
+        <HStack spacing={2} color="gray.600">
+          <FiSettings />
+          <Text fontWeight="medium">Customization Options</Text>
+        </HStack>
+      </Box>
+
+      <VStack spacing={4}>
+        <Select
+          value={tone}
+          onChange={(e) => setTone(e.target.value)}
+          bg="white"
+          size="lg"
         >
-          <Heading 
-            as="h1" 
-            size="2xl" 
-            mb={4}
-            bgGradient="linear(to-r, blue.400, purple.500)"
-            bgClip="text"
-          >
+          <option value="professional">Professional</option>
+          <option value="casual">Casual</option>
+          <option value="friendly">Friendly</option>
+          <option value="formal">Formal</option>
+          <option value="enthusiastic">Enthusiastic</option>
+        </Select>
+
+        <Textarea
+          placeholder="Add context for personalization (optional)"
+          value={context}
+          onChange={(e) => setContext(e.target.value)}
+          bg="white"
+          size="lg"
+          rows={4}
+          resize="vertical"
+        />
+      </VStack>
+    </Box>
+  );
+
+  return (
+    <Container maxW="container.md" py={8}>
+      <VStack spacing={8} align="stretch">
+        <Box textAlign="center">
+          <Text fontSize="4xl" fontWeight="bold" mb={2}>
             LinkedIngest
-          </Heading>
-          <Text fontSize="xl" color={useColorModeValue('gray.600', 'gray.300')}>
-            Turn any LinkedIn profile into an LLM-friendly summary
+          </Text>
+          <Text fontSize="lg" color="gray.600">
+            Transform LinkedIn profiles into LLM-friendly summaries
           </Text>
         </Box>
 
-        <Box
-          bg={bgColor}
-          p={8}
-          borderRadius="xl"
-          boxShadow="lg"
-          border="1px"
-          borderColor={borderColor}
-          position="relative"
-          overflow="hidden"
-          _before={{
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            bgGradient: 'linear(to-r, blue.400, purple.500)',
+        <Tabs 
+          variant="enclosed" 
+          colorScheme="blue" 
+          onChange={(index) => {
+            setActiveTab(index);
+            setSummary('');
           }}
         >
-          <Tabs isFitted variant="soft-rounded" colorScheme="blue">
-            <TabList mb="6">
-              <Tab 
-                fontWeight="medium" 
-                _selected={{ 
-                  color: 'white',
-                  bg: accentColor,
-                }}
-                display="flex"
-                alignItems="center"
-                gap={2}
-              >
-                <Icon as={FiLink} />
-                URL Input
-              </Tab>
-              <Tab 
-                fontWeight="medium"
-                _selected={{ 
-                  color: 'white',
-                  bg: accentColor,
-                }}
-                display="flex"
-                alignItems="center"
-                gap={2}
-              >
-                <Icon as={FiFileText} />
-                PDF Upload
-              </Tab>
-            </TabList>
+          <TabList>
+            <Tab>LinkedIn URL</Tab>
+            <Tab>PDF Upload</Tab>
+          </TabList>
 
-            <TabPanels>
-              <TabPanel px={0}>
-                <VStack spacing={4}>
-                  <Input
-                    placeholder="Enter LinkedIn Profile URL"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    size="lg"
-                    bg={bgColor}
-                    border="2px"
-                    borderColor={borderColor}
-                    _hover={{ borderColor: accentColor }}
-                    _focus={{ 
-                      borderColor: accentColor,
-                      boxShadow: `0 0 0 1px ${accentColor}`,
-                    }}
-                    fontSize="md"
-                  />
-                  <Button
-                    colorScheme="blue"
-                    onClick={handleUrlSubmit}
-                    isLoading={loading}
-                    width="full"
-                    size="lg"
-                    _hover={{
-                      transform: 'translateY(-2px)',
-                      boxShadow: 'lg',
-                    }}
-                    transition="all 0.2s"
-                  >
-                    Analyze Profile
-                  </Button>
-                </VStack>
-              </TabPanel>
+          <TabPanels>
+            <TabPanel>
+              <VStack spacing={4}>
+                <Input
+                  placeholder="Enter LinkedIn profile URL"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  size="lg"
+                />
+                <CustomizationOptions />
+              </VStack>
+            </TabPanel>
 
-              <TabPanel px={0}>
+            <TabPanel>
+              <VStack spacing={4}>
                 <Box
                   {...getRootProps()}
-                  p={8}
-                  border="3px dashed"
-                  borderColor={uploadedFile ? "green.500" : isDragActive ? accentColor : borderColor}
-                  borderRadius="xl"
+                  p={10}
+                  border="2px dashed"
+                  borderColor={isDragActive ? 'blue.400' : file ? 'green.400' : 'gray.200'}
+                  borderRadius="md"
                   textAlign="center"
+                  bg={isDragActive ? 'blue.50' : file ? 'green.50' : 'transparent'}
                   cursor="pointer"
-                  bg={uploadedFile ? "green.50" : isDragActive ? "blue.50" : bgColor}
-                  _hover={{ 
-                    borderColor: uploadedFile ? 'green.600' : accentColor,
-                    bg: uploadedFile ? 'green.100' : hoverBg,
-                    transform: 'translateY(-2px)',
-                  }}
                   transition="all 0.2s"
+                  _hover={{ 
+                    borderColor: file ? 'green.500' : 'blue.400', 
+                    bg: file ? 'green.100' : 'blue.50' 
+                  }}
                   position="relative"
                 >
                   <input {...getInputProps()} />
-                  <VStack spacing={4}>
-                    <Icon 
-                      as={uploadedFile ? FiCheck : isDragActive ? FiUpload : FiFile} 
-                      w={12} 
-                      h={12} 
-                      color={uploadedFile ? "green.500" : accentColor}
-                    />
-                    {uploadedFile ? (
-                      <VStack spacing={3}>
-                        <Badge 
-                          colorScheme="green" 
-                          fontSize="md" 
-                          px={4} 
-                          py={2}
-                          borderRadius="full"
-                        >
-                          File Uploaded Successfully
-                        </Badge>
-                        <HStack spacing={2} color="gray.600">
-                          <Icon as={FiFile} />
-                          <Text fontWeight="medium">{uploadedFile.name}</Text>
-                        </HStack>
-                        <Text fontSize="sm" color="gray.500">
-                          Click or drag another file to replace
-                        </Text>
-                      </VStack>
-                    ) : (
-                      <>
-                        <Text color="gray.600" fontWeight="medium" fontSize="lg">
-                          {isDragActive
-                            ? "Drop your LinkedIn PDF here"
-                            : "Drag and drop your LinkedIn PDF here, or click to select"}
-                        </Text>
-                        <Text fontSize="md" color="gray.500">
-                          Export your LinkedIn profile as PDF and upload it here
-                        </Text>
-                      </>
+                  <VStack spacing={3}>
+                    <FiUpload size={24} color={file ? '#38A169' : '#4299E1'} />
+                    <Text color={file ? 'green.600' : 'gray.600'}>
+                      {file
+                        ? `Selected: ${file.name}`
+                        : isDragActive
+                        ? 'Drop the PDF here'
+                        : 'Drag & drop a PDF or click to select'}
+                    </Text>
+                    {file && (
+                      <Button
+                        size="sm"
+                        colorScheme="red"
+                        variant="ghost"
+                        leftIcon={<FiX />}
+                        onClick={handleRemoveFile}
+                        mt={2}
+                      >
+                        Remove File
+                      </Button>
                     )}
                   </VStack>
                 </Box>
+                <CustomizationOptions />
+              </VStack>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
 
-                {uploadedFile && !loading && (
-                  <Button
-                    mt={4}
-                    colorScheme="red"
-                    variant="ghost"
-                    size="md"
-                    leftIcon={<Icon as={FiX} />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setUploadedFile(null);
-                      setSummary('');
-                    }}
-                    _hover={{
-                      bg: 'red.50',
-                      transform: 'translateY(-1px)',
-                    }}
-                    transition="all 0.2s"
-                  >
-                    Remove File
-                  </Button>
-                )}
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-
-          <Box mt={8} position="relative">
-            <Box
-              position="absolute"
-              top="-12px"
-              left="50%"
-              transform="translateX(-50%)"
-              bg={bgColor}
-              px={4}
-              py={1}
-              borderRadius="full"
-              border="1px"
-              borderColor={borderColor}
-            >
-              <HStack spacing={2} color="gray.600">
-                <Icon as={FiSettings} />
-                <Text fontWeight="medium">Customization Options</Text>
-              </HStack>
-            </Box>
-
-            <VStack 
-              spacing={4} 
-              mt={6}
-              p={6}
-              bg={useColorModeValue('gray.50', 'gray.700')}
-              borderRadius="lg"
-              border="1px"
-              borderColor={borderColor}
-            >
-              <Select
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
-                size="lg"
-                bg={bgColor}
-                borderColor={borderColor}
-                _hover={{ borderColor: accentColor }}
-                icon={<Icon as={FiSettings} />}
-              >
-                <option value="professional">Professional</option>
-                <option value="casual">Casual</option>
-                <option value="friendly">Friendly</option>
-                <option value="formal">Formal</option>
-                <option value="enthusiastic">Enthusiastic</option>
-              </Select>
-
-              <Textarea
-                placeholder="Add context for personalization (optional)"
-                value={context}
-                onChange={(e) => setContext(e.target.value)}
-                size="lg"
-                bg={bgColor}
-                borderColor={borderColor}
-                _hover={{ borderColor: accentColor }}
-                rows={4}
-                resize="vertical"
-              />
-            </VStack>
-          </Box>
-        </Box>
-
-        {loading && (
-          <Box
-            p={4}
-            bg={bgColor}
-            borderRadius="lg"
-            boxShadow="md"
-            border="1px"
-            borderColor={borderColor}
-          >
-            <Progress 
-              size="xs" 
-              isIndeterminate 
-              colorScheme="blue" 
-              borderRadius="full"
-            />
-            <Text textAlign="center" mt={3} color="gray.600" fontWeight="medium">
-              Analyzing profile...
-            </Text>
-          </Box>
-        )}
+        <Button
+          colorScheme="blue"
+          size="lg"
+          isLoading={isLoading}
+          onClick={handleAnalyze}
+          leftIcon={<FiPlay />}
+          isDisabled={(activeTab === 0 && !url) || (activeTab === 1 && !file)}
+        >
+          Analyze Profile
+        </Button>
 
         {summary && (
-          <Box
-            p={8}
-            bg={bgColor}
-            borderRadius="xl"
-            border="1px"
-            borderColor={borderColor}
-            boxShadow="lg"
-            position="relative"
-            overflow="hidden"
-            _before={{
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '4px',
-              bgGradient: 'linear(to-r, green.400, teal.500)',
-            }}
-          >
-            <Heading 
-              size="lg" 
-              mb={4}
-              bgGradient="linear(to-r, green.400, teal.500)"
-              bgClip="text"
-            >
-              Generated Summary
-            </Heading>
-            <Text 
+          <Box position="relative">
+            <Textarea
+              value={summary}
+              readOnly
+              minH="300px"
+              p={4}
+              borderRadius="md"
+              bg="gray.50"
               whiteSpace="pre-wrap"
-              fontSize="lg"
-              lineHeight="tall"
+            />
+            <Button
+              position="absolute"
+              top={2}
+              right={2}
+              size="sm"
+              colorScheme="blue"
+              variant="ghost"
+              leftIcon={<FiCopy />}
+              onClick={handleCopy}
             >
-              {summary}
-            </Text>
+              Copy
+            </Button>
           </Box>
         )}
       </VStack>

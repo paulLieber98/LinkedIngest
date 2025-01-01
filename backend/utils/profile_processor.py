@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import PyPDF2
 import io
 import openai
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 import re
 from urllib.parse import urlparse
 
@@ -60,13 +60,24 @@ class ProfileProcessor:
             response = openai.Completion.create(
                 model="gpt-3.5-turbo-instruct",
                 prompt=prompt,
-                max_tokens=500,
+                max_tokens=800,  # Increased for more detailed summaries
                 temperature=0.7,
                 top_p=1.0,
-                frequency_penalty=0.0,
-                presence_penalty=0.0
+                frequency_penalty=0.3,  # Increased for more diverse language
+                presence_penalty=0.2,   # Increased to avoid repetition
             )
-            return response.choices[0].text.strip()
+            
+            # Post-process the summary to ensure consistent formatting
+            summary = response.choices[0].text.strip()
+            
+            # Ensure each section starts on a new line
+            sections = ["PROFESSIONAL IDENTITY:", "CORE EXPERTISE:", "EXPERIENCE HIGHLIGHTS:", 
+                       "TECHNICAL SKILLS:", "EDUCATION:", "NOTABLE ACHIEVEMENTS:"]
+            for section in sections:
+                if section in summary and not summary.startswith(section):
+                    summary = summary.replace(section, f"\n{section}")
+            
+            return summary
         except Exception as e:
             raise Exception(f"Error generating summary: {str(e)}")
 
@@ -126,23 +137,24 @@ class ProfileProcessor:
         current_section = ""
         section_content = []
 
-        # Common LinkedIn section headers
+        # Common LinkedIn section headers and their variations
         section_markers = {
-            "about": ["about", "summary"],
-            "experience": ["experience", "work experience", "employment"],
-            "education": ["education", "academic background"],
-            "skills": ["skills", "skills & endorsements", "skills and endorsements"],
-            "certifications": ["licenses & certifications", "certifications"],
-            "languages": ["languages"]
+            "about": ["about", "summary", "professional summary", "overview"],
+            "experience": ["experience", "work experience", "employment history", "professional experience"],
+            "education": ["education", "academic background", "academic history"],
+            "skills": ["skills", "skills & endorsements", "skills and endorsements", "expertise"],
+            "certifications": ["licenses & certifications", "certifications", "professional certifications"],
+            "languages": ["languages", "language proficiency"]
         }
 
         # Extract name (usually at the top)
-        for line in lines[:5]:  # Check first 5 lines for name
-            if line.strip() and not any(marker in line.lower() for markers in section_markers.values() for marker in markers):
-                sections["name"] = line.strip()
+        for line in lines[:5]:
+            line = line.strip()
+            if line and not any(marker in line.lower() for markers in section_markers.values() for marker in markers):
+                sections["name"] = line
                 break
 
-        # Process rest of the text
+        # Process rest of the text with improved section detection
         for line in lines:
             line = line.strip()
             if not line:
@@ -155,7 +167,7 @@ class ProfileProcessor:
                 if any(marker in lower_line for marker in markers):
                     # Save previous section content
                     if current_section and section_content:
-                        sections[current_section] = "\n".join(section_content)
+                        sections[current_section] = self._clean_section_content(section_content)
                     # Start new section
                     current_section = section
                     section_content = []
@@ -168,33 +180,66 @@ class ProfileProcessor:
 
             # Try to extract headline if not found yet
             if not sections["headline"] and not current_section and line != sections["name"]:
-                sections["headline"] = line
+                if len(line.split()) <= 15:  # Reasonable length for a headline
+                    sections["headline"] = line
 
         # Save the last section
         if current_section and section_content:
-            sections[current_section] = "\n".join(section_content)
+            sections[current_section] = self._clean_section_content(section_content)
 
         return sections
 
+    def _clean_section_content(self, content: List[str]) -> str:
+        """Clean and format section content for better processing"""
+        # Join lines and clean up whitespace
+        text = ' '.join(content)
+        
+        # Remove multiple spaces
+        text = ' '.join(text.split())
+        
+        # Add bullet points for better structure in experience sections
+        if any(keyword in text.lower() for keyword in ['achieved', 'developed', 'led', 'managed', 'created']):
+            sentences = text.split('. ')
+            text = '\n• ' + '\n• '.join(s.strip() for s in sentences if s.strip())
+        
+        return text.strip()
+
     def _create_summary_prompt(self, profile_data: Dict[str, str], tone: str, context: Optional[str] = None) -> str:
         """Create a detailed prompt for the GPT model"""
-        prompt = f"Create a {tone} summary of the following LinkedIn profile. Focus on creating a natural, engaging narrative:\n\n"
+        prompt = f"""Generate a concise, well-structured summary of this LinkedIn profile that would be ideal for use as context in LLM/chatbot conversations. Use a {tone} tone.
+
+Profile Information:
+{'-' * 40}"""
         
-        # Add sections in a specific order
+        # Add sections in a specific order with clear formatting
         section_order = ["name", "headline", "about", "experience", "education", "skills", "certifications", "languages"]
         for key in section_order:
             if key in profile_data and profile_data[key].strip():
-                prompt += f"{key.replace('_', ' ').title()}:\n{profile_data[key].strip()}\n\n"
+                prompt += f"\n{key.upper()}:\n{profile_data[key].strip()}\n"
 
         if context:
-            prompt += f"\nContext for personalization: {context}\n"
+            prompt += f"\nADDITIONAL CONTEXT:\n{context}\n"
 
-        prompt += "\nPlease create a concise, engaging summary that:\n"
-        prompt += "1. Starts with a strong introduction including the person's name and key role\n"
-        prompt += "2. Highlights their most impressive achievements and experience\n"
-        prompt += "3. Includes relevant skills and qualifications\n"
-        prompt += f"4. Uses a {tone} tone throughout\n"
-        prompt += "5. Ends with their unique value proposition or specialization\n"
-        prompt += "6. Formats the text in 2-3 clear, readable paragraphs\n"
+        prompt += f"""
+{'-' * 40}
+
+Create a summary that:
+1. Starts with a clear, one-sentence professional identity statement
+2. Follows a structured format with clear sections
+3. Emphasizes key achievements and skills relevant for AI processing
+4. Uses clear, unambiguous language
+5. Includes specific numbers and metrics where available
+6. Maintains factual accuracy without embellishment
+7. Formats information in a way that's easy for LLMs to parse
+
+Format the summary in this structure:
+PROFESSIONAL IDENTITY: [One-sentence overview]
+CORE EXPERTISE: [Key areas of expertise, comma-separated]
+EXPERIENCE HIGHLIGHTS: [Bullet points of key achievements]
+TECHNICAL SKILLS: [Relevant technical skills, comma-separated]
+EDUCATION: [Relevant degrees and certifications]
+NOTABLE ACHIEVEMENTS: [Key metrics and accomplishments]
+
+Keep the tone {tone} while maintaining clarity and factual accuracy."""
 
         return prompt 
