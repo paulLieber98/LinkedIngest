@@ -87,6 +87,9 @@ function Home() {
     try {
       let response;
       const formData = new FormData();
+      const API_BASE_URL = process.env.NODE_ENV === 'production' 
+        ? 'https://www.linkedingest.com'
+        : 'http://localhost:3000';
 
       if (activeTab === 1 && file) {
         formData.append('file', file);
@@ -94,12 +97,12 @@ function Home() {
         if (context.trim()) {
           formData.append('context', context);
         }
-        response = await fetch('/api/analyze_pdf', {
+        response = await fetch(`${API_BASE_URL}/api/analyze_pdf`, {
           method: 'POST',
           body: formData,
         });
       } else if (activeTab === 0 && url) {
-        response = await fetch('/api/analyze_url', {
+        response = await fetch(`${API_BASE_URL}/api/analyze_url`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -199,8 +202,8 @@ function Home() {
 
         <Textarea
           placeholder="Add context for personalization (optional)"
-          defaultValue={context}
-          onChange={handleContextChange}
+          value={context}
+          onChange={(e) => setContext(e.target.value)}
           bg="white"
           size="lg"
           rows={4}
