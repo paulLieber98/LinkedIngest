@@ -27,7 +27,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins
-    allow_credentials=False,
+    allow_credentials=True,  # Allow credentials
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
@@ -65,6 +65,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "*",
             "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
         }
     )
 
@@ -78,6 +79,7 @@ async def general_exception_handler(request: Request, exc: Exception):
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "*",
             "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
         }
     )
 
@@ -314,13 +316,15 @@ async def analyze_url(request: URLAnalysisRequest):
         logger.info("Successfully completed URL analysis")
         return JSONResponse(
             content={
+                "summary": summary,
                 "success": True,
-                "summary": summary
+                "message": "Profile successfully analyzed"
             },
             headers={
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Credentials": "true",
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
                 "Expires": "0"
@@ -363,13 +367,15 @@ async def analyze_pdf(
         logger.info("Successfully completed PDF analysis")
         return JSONResponse(
             content={
+                "summary": summary,
                 "success": True,
-                "summary": summary
+                "message": "PDF successfully analyzed"
             },
             headers={
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Credentials": "true",
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
                 "Expires": "0"

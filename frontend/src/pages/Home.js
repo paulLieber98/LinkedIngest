@@ -102,6 +102,7 @@ function Home() {
       
       // Use the current origin for API calls
       const API_BASE_URL = window.location.origin;
+      console.log('API Base URL:', API_BASE_URL); // Debug log
 
       if (activeTab === 1 && file) {
         formData.append('file', file);
@@ -110,9 +111,14 @@ function Home() {
           method: 'POST',
           body: formData,
           mode: 'cors',
+          credentials: 'include',
         });
       } else if (activeTab === 0 && url) {
-        response = await fetch(`${API_BASE_URL}/api/analyze_url`, {
+        const requestUrl = `${API_BASE_URL}/api/analyze_url`;
+        console.log('Request URL:', requestUrl); // Debug log
+        console.log('Request Body:', { url: url.trim(), context: null }); // Debug log
+        
+        response = await fetch(requestUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -123,15 +129,19 @@ function Home() {
             context: null 
           }),
           mode: 'cors',
+          credentials: 'include',
         });
       }
+
+      console.log('Response Status:', response.status); // Debug log
+      console.log('Response Headers:', response.headers); // Debug log
 
       if (!response.ok) {
         let errorMessage = 'Failed to analyze profile';
         try {
           const errorData = await response.json();
-          errorMessage = errorData.detail || errorMessage;
           console.error('API Error Response:', errorData);
+          errorMessage = errorData.detail || errorMessage;
         } catch (e) {
           console.error('Error parsing error response:', e);
           if (response.status === 0) {
@@ -148,7 +158,10 @@ function Home() {
       }
 
       const data = await response.json();
-      if (!data.success || !data.summary) {
+      console.log('API Response:', data); // Debug log
+
+      if (!data || !data.summary) {
+        console.error('Invalid API Response:', data); // Debug log
         throw new Error('Invalid response from server');
       }
 
