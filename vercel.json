@@ -9,50 +9,51 @@
             "src": "frontend/package.json",
             "use": "@vercel/static-build",
             "config": {
-                "distDir": "build"
+                "distDir": "frontend/build"
             }
         }
     ],
     "routes": [
         {
             "src": "/static/(.*)",
-            "dest": "/frontend/build/static/$1"
+            "dest": "/frontend/build/static/$1",
+            "headers": {
+                "cache-control": "public, max-age=31536000, immutable"
+            }
         },
         {
             "src": "/api/analyze_url",
-            "dest": "/api/index.py",
+            "dest": "api/index.py",
             "methods": ["POST", "OPTIONS"],
             "headers": {
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept, Authorization",
-                "Access-Control-Allow-Credentials": "true",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
+                "Access-Control-Allow-Credentials": "true"
             }
         },
         {
             "src": "/api/analyze_pdf",
-            "dest": "/api/index.py",
+            "dest": "api/index.py",
             "methods": ["POST", "OPTIONS"],
             "headers": {
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept, Authorization",
-                "Access-Control-Allow-Credentials": "true",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
+                "Access-Control-Allow-Credentials": "true"
             }
         },
         {
             "src": "/api/(.*)",
-            "dest": "/api/index.py"
+            "dest": "api/index.py"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "frontend/build/$1"
         },
         {
             "src": "/((?!api/).*)",
-            "dest": "/frontend/build/index.html"
+            "dest": "frontend/build/index.html"
         }
     ],
     "env": {
