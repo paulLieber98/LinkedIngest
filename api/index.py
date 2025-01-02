@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
@@ -13,6 +13,7 @@ import re
 from io import BytesIO
 from PyPDF2 import PdfReader
 import logging
+from fastapi.staticfiles import StaticFiles
 
 # Configure logging with more detail
 logging.basicConfig(
@@ -154,7 +155,8 @@ def analyze_with_gpt(profile_text, context=None):
         logger.info(f"OpenAI API Key configured: {bool(openai.api_key)}")
         
         try:
-            response = openai.ChatCompletion.create(
+            client = openai.OpenAI()
+            response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[
                     {
@@ -178,24 +180,73 @@ def analyze_with_gpt(profile_text, context=None):
             logger.info("Successfully completed GPT analysis")
             return response.choices[0].message.content
             
-        except openai.error.AuthenticationError as e:
-            logger.error(f"OpenAI Authentication Error: {str(e)}")
-            raise HTTPException(status_code=500, detail="API authentication failed. Please check the configuration.")
-        except openai.error.RateLimitError as e:
-            logger.error(f"OpenAI Rate Limit Error: {str(e)}")
-            raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again in a moment.")
-        except openai.error.InvalidRequestError as e:
-            logger.error(f"OpenAI Invalid Request Error: {str(e)}")
-            raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            logger.error(f"OpenAI API Error: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error in GPT analysis: {str(e)}")
+            if "Incorrect API key" in str(e):
+                logger.error(f"OpenAI Authentication Error: {str(e)}")
+                raise HTTPException(status_code=500, detail="API authentication failed. Please check the configuration.")
+            elif "Rate limit" in str(e):
+                logger.error(f"OpenAI Rate Limit Error: {str(e)}")
+                raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again in a moment.")
+            elif "Invalid request" in str(e):
+                logger.error(f"OpenAI Invalid Request Error: {str(e)}")
+                raise HTTPException(status_code=400, detail=str(e))
+            else:
+                logger.error(f"OpenAI API Error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Error in GPT analysis: {str(e)}")
             
     except Exception as e:
         logger.error(f"Error in analyze_with_gpt: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/")
+# Mount static files first
+app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
+
+# API routes
+@app.post("/api/analyze_pdf")
+async def analyze_pdf(
+    file: UploadFile = File(...),
+    context: Optional[str] = Form(None)
+):
+    try:
+        logger.info(f"Received PDF analysis request for file: {file.filename}")
+        
+        # Validate file type
+        if not file.filename.lower().endswith('.pdf'):
+            raise HTTPException(status_code=400, detail="Please upload a PDF file")
+        
+        # Read PDF content with size limit
+        content = await file.read()
+        if len(content) > 10 * 1024 * 1024:  # 10MB limit
+            raise HTTPException(status_code=413, detail="PDF file too large. Maximum size is 10MB.")
+        
+        logger.info(f"Successfully read PDF file, size: {len(content)} bytes")
+        
+        # Extract text from PDF
+        text_content = extract_text_from_pdf(content)
+        
+        if not text_content or len(text_content.strip()) < 10:
+            raise HTTPException(status_code=400, detail="Could not extract text from PDF. Please ensure it's a valid PDF with text content.")
+        
+        # Analyze with GPT
+        summary = analyze_with_gpt(text_content, context)
+
+        logger.info("Successfully completed PDF analysis")
+        return JSONResponse(
+            content={
+                "summary": summary,
+                "success": True,
+                "message": "PDF successfully analyzed"
+            }
+        )
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error in analyze_pdf: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Serve frontend as the last route
+app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
+
 @app.get("/api")
 async def root():
     """Root endpoint that handles both / and /api"""
@@ -334,57 +385,6 @@ async def analyze_url(request: URLAnalysisRequest):
         raise he
     except Exception as e:
         logger.error(f"Error in analyze_url: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/analyze_pdf")
-async def analyze_pdf(
-    file: UploadFile = File(...),
-    context: Optional[str] = Form(None)
-):
-    try:
-        logger.info(f"Received PDF analysis request for file: {file.filename}")
-        
-        # Validate file type
-        if not file.filename.lower().endswith('.pdf'):
-            raise HTTPException(status_code=400, detail="Please upload a PDF file")
-        
-        # Read PDF content with size limit
-        content = await file.read()
-        if len(content) > 10 * 1024 * 1024:  # 10MB limit
-            raise HTTPException(status_code=413, detail="PDF file too large. Maximum size is 10MB.")
-        
-        logger.info(f"Successfully read PDF file, size: {len(content)} bytes")
-        
-        # Extract text from PDF
-        text_content = extract_text_from_pdf(content)
-        
-        if not text_content or len(text_content.strip()) < 10:
-            raise HTTPException(status_code=400, detail="Could not extract text from PDF. Please ensure it's a valid PDF with text content.")
-        
-        # Analyze with GPT
-        summary = analyze_with_gpt(text_content, context)
-
-        logger.info("Successfully completed PDF analysis")
-        return JSONResponse(
-            content={
-                "summary": summary,
-                "success": True,
-                "message": "PDF successfully analyzed"
-            },
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Credentials": "true",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        logger.error(f"Error in analyze_pdf: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.options("/{full_path:path}")
