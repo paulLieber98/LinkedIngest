@@ -39,6 +39,7 @@ openai.api_key = api_key
 
 class URLAnalysisRequest(BaseModel):
     url: str
+    context: Optional[str] = None
 
 def extract_profile_info(html_content):
     try:
@@ -83,41 +84,61 @@ def extract_text_from_pdf(pdf_content):
         logger.error(f"Error in extract_text_from_pdf: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
 
-def analyze_with_gpt(profile_text):
+def analyze_with_gpt(profile_text, context=None):
     try:
         if not openai.api_key:
             raise ValueError("OpenAI API key is not configured")
 
         logger.info("Starting GPT analysis")
+        
+        # Base system message
+        system_message = """You are an expert at analyzing LinkedIn profiles and creating concise, informative summaries. 
+        Focus on extracting and highlighting key professional details including:
+        - Current role and company
+        - Key skills and expertise
+        - Professional experience highlights
+        - Educational background
+        - Notable achievements
+        
+        Format the summary in a clear, bullet-point style that's easy to read and understand.
+        Be direct and professional in your analysis."""
+
+        # Add context if provided
+        if context:
+            system_message += f"\n\nAdditional context for analysis: {context}"
+
+        messages = [
+            {
+                "role": "system",
+                "content": system_message
+            },
+            {
+                "role": "user",
+                "content": f"Please analyze this LinkedIn profile content and create a professional summary:\n\n{profile_text}"
+            }
+        ]
+
         response = openai.ChatCompletion.create(
             model="gpt-4",
-            messages=[
-                {
-                    "role": "system",
-                    "content": """You are an expert at analyzing LinkedIn profiles and creating concise, informative summaries. 
-                    Focus on extracting and highlighting key professional details including:
-                    - Current role and company
-                    - Key skills and expertise
-                    - Professional experience highlights
-                    - Educational background
-                    - Notable achievements
-                    
-                    Format the summary in a clear, bullet-point style that's easy to read and understand.
-                    Be direct and professional in your analysis."""
-                },
-                {
-                    "role": "user",
-                    "content": f"Please analyze this LinkedIn profile content and create a professional summary:\n\n{profile_text}"
-                }
-            ],
+            messages=messages,
             temperature=0.7,
-            max_tokens=1000
+            max_tokens=1500,
+            presence_penalty=0.6,
+            frequency_penalty=0.3
         )
+        
         logger.info("Successfully completed GPT analysis")
         return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Error in analyze_with_gpt: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error in GPT analysis: {str(e)}")
+        if "Rate limit" in str(e):
+            raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again in a moment.")
+        elif "maximum context length" in str(e):
+            raise HTTPException(status_code=413, detail="Profile content too long. Please try a shorter profile or use PDF upload.")
+        elif "API key" in str(e):
+            raise HTTPException(status_code=500, detail="API configuration error. Please try again later.")
+        else:
+            raise HTTPException(status_code=500, detail=f"Error in GPT analysis: {str(e)}")
 
 @app.get("/")
 @app.get("/api")
@@ -192,6 +213,8 @@ async def analyze_url(request: URLAnalysisRequest):
         }
         async with httpx.AsyncClient() as client:
             response = await client.get(request.url, headers=headers, follow_redirects=True)
+            if response.status_code == 999:
+                raise HTTPException(status_code=403, detail="LinkedIn has blocked the request. Please try uploading a PDF instead.")
             if response.status_code != 200:
                 logger.error(f"Failed to fetch profile. Status code: {response.status_code}")
                 raise HTTPException(status_code=response.status_code, detail="Failed to fetch LinkedIn profile")
@@ -200,21 +223,30 @@ async def analyze_url(request: URLAnalysisRequest):
         profile_text = extract_profile_info(response.text)
         
         # Analyze with GPT
-        summary = analyze_with_gpt(profile_text)
+        summary = analyze_with_gpt(profile_text, request.context)
 
         logger.info("Successfully completed URL analysis")
         return {
             "success": True,
             "summary": summary
         }
+    except HTTPException as he:
+        raise he
     except Exception as e:
         logger.error(f"Error in analyze_url: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/analyze_pdf")
-async def analyze_pdf(file: UploadFile = File(...)):
+async def analyze_pdf(
+    file: UploadFile = File(...),
+    context: Optional[str] = Form(None)
+):
     try:
         logger.info(f"Received PDF analysis request for file: {file.filename}")
+        
+        # Validate file type
+        if not file.filename.lower().endswith('.pdf'):
+            raise HTTPException(status_code=400, detail="Please upload a PDF file")
         
         # Read PDF content
         content = await file.read()
@@ -224,13 +256,15 @@ async def analyze_pdf(file: UploadFile = File(...)):
         text_content = extract_text_from_pdf(content)
         
         # Analyze with GPT
-        summary = analyze_with_gpt(text_content)
+        summary = analyze_with_gpt(text_content, context)
 
         logger.info("Successfully completed PDF analysis")
         return {
             "success": True,
             "summary": summary
         }
+    except HTTPException as he:
+        raise he
     except Exception as e:
         logger.error(f"Error in analyze_pdf: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
