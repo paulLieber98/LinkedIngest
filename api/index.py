@@ -38,9 +38,9 @@ api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
     logger.error("OPENAI_API_KEY environment variable is not set")
     raise ValueError("OpenAI API key is not configured")
-else:
-    logger.info("OPENAI_API_KEY is configured")
-    openai.api_key = api_key
+
+# Configure OpenAI client
+openai.api_key = api_key
 
 # Add more detailed logging
 @app.middleware("http")
@@ -130,9 +130,6 @@ def extract_text_from_pdf(pdf_content):
 
 def analyze_with_gpt(profile_text, context=None):
     try:
-        if not openai.api_key:
-            raise ValueError("OpenAI API key is not configured")
-
         logger.info("Starting GPT analysis")
         
         # Base system message
@@ -151,38 +148,50 @@ def analyze_with_gpt(profile_text, context=None):
         if context:
             system_message += f"\n\nAdditional context for analysis: {context}"
 
-        messages = [
-            {
-                "role": "system",
-                "content": system_message
-            },
-            {
-                "role": "user",
-                "content": f"Please analyze this LinkedIn profile content and create a professional summary:\n\n{profile_text}"
-            }
-        ]
-
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=messages,
-            temperature=0.7,
-            max_tokens=1500,
-            presence_penalty=0.6,
-            frequency_penalty=0.3
-        )
+        # Log the API key status (safely)
+        logger.info(f"OpenAI API Key configured: {bool(openai.api_key)}")
         
-        logger.info("Successfully completed GPT analysis")
-        return response.choices[0].message.content
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_message
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Please analyze this LinkedIn profile content and create a professional summary:\n\n{profile_text}"
+                    }
+                ],
+                temperature=0.7,
+                max_tokens=1500,
+                presence_penalty=0.6,
+                frequency_penalty=0.3
+            )
+            
+            if not response or not response.choices or not response.choices[0].message:
+                raise ValueError("Invalid response from OpenAI API")
+                
+            logger.info("Successfully completed GPT analysis")
+            return response.choices[0].message.content
+            
+        except openai.error.AuthenticationError as e:
+            logger.error(f"OpenAI Authentication Error: {str(e)}")
+            raise HTTPException(status_code=500, detail="API authentication failed. Please check the configuration.")
+        except openai.error.RateLimitError as e:
+            logger.error(f"OpenAI Rate Limit Error: {str(e)}")
+            raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again in a moment.")
+        except openai.error.InvalidRequestError as e:
+            logger.error(f"OpenAI Invalid Request Error: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"OpenAI API Error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error in GPT analysis: {str(e)}")
+            
     except Exception as e:
         logger.error(f"Error in analyze_with_gpt: {str(e)}")
-        if "Rate limit" in str(e):
-            raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again in a moment.")
-        elif "maximum context length" in str(e):
-            raise HTTPException(status_code=413, detail="Profile content too long. Please try a shorter profile or use PDF upload.")
-        elif "API key" in str(e):
-            raise HTTPException(status_code=500, detail="API configuration error. Please try again later.")
-        else:
-            raise HTTPException(status_code=500, detail=f"Error in GPT analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 @app.get("/api")
@@ -209,11 +218,33 @@ async def health_check():
     """Health check endpoint"""
     try:
         # Check if OpenAI API key is configured
-        api_key_status = "configured" if openai.api_key else "not configured"
+        if not openai.api_key:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "status": "unhealthy",
+                    "timestamp": datetime.now().isoformat(),
+                    "api_version": "1.0.0",
+                    "openai_api": "not configured",
+                    "environment": os.getenv("VERCEL_ENV", "development"),
+                    "error": "OpenAI API key is not configured"
+                }
+            )
         
-        response = JSONResponse(
+        # Test OpenAI API key with a simple request
+        try:
+            # Make a simple test request
+            openai.Model.list()
+            api_key_status = "valid"
+        except openai.error.AuthenticationError:
+            api_key_status = "invalid"
+        except Exception as e:
+            logger.error(f"Error testing OpenAI API key: {str(e)}")
+            api_key_status = "error"
+        
+        return JSONResponse(
             content={
-                "status": "healthy",
+                "status": "healthy" if api_key_status == "valid" else "unhealthy",
                 "timestamp": datetime.now().isoformat(),
                 "api_version": "1.0.0",
                 "openai_api": api_key_status,
@@ -226,10 +257,16 @@ async def health_check():
                 "Content-Type": "application/json"
             }
         )
-        return response
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "unhealthy",
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
+            }
+        )
 
 @app.post("/api/analyze_url")
 async def analyze_url(request: URLAnalysisRequest):
