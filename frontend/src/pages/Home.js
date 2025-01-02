@@ -15,9 +15,32 @@ import {
   HStack,
   Textarea,
   Heading,
+  Image,
 } from '@chakra-ui/react';
 import { useDropzone } from 'react-dropzone';
 import { FiUpload, FiCopy, FiPlay } from 'react-icons/fi';
+
+// Decorative elements
+const Sparkle = ({ top, left, size = "40px", color = "#FF69B4" }) => (
+  <Box
+    position="absolute"
+    top={top}
+    left={left}
+    width={size}
+    height={size}
+    transform="rotate(45deg)"
+    _before={{
+      content: '""',
+      position: "absolute",
+      width: "100%",
+      height: "100%",
+      background: color,
+      borderRadius: "50%",
+      filter: "blur(5px)",
+      opacity: 0.3,
+    }}
+  />
+);
 
 function Home() {
   const [url, setUrl] = useState('');
@@ -137,44 +160,92 @@ function Home() {
   };
 
   return (
-    <Box bg="gray.50" minH="100vh" py={12}>
-      <Container maxW="container.md">
+    <Box bg="cream" minH="100vh" py={12} position="relative" overflow="hidden">
+      {/* Decorative sparkles */}
+      <Sparkle top="10%" left="10%" color="#4299E1" />
+      <Sparkle top="20%" left="80%" color="#48BB78" />
+      <Sparkle top="70%" left="15%" color="#F56565" />
+      <Sparkle top="60%" left="85%" color="#9F7AEA" />
+
+      <Container maxW="container.md" position="relative">
         <VStack spacing={8} align="stretch">
           <Box textAlign="center" mb={8}>
             <Heading 
               as="h1" 
               size="2xl" 
               mb={4}
-              bgGradient="linear(to-r, blue.500, purple.500)"
+              bgGradient="linear(to-r, #FF6B6B, #4ECDC4)"
               bgClip="text"
+              filter="drop-shadow(0 2px 4px rgba(0,0,0,0.1))"
+              transform="translateY(-4px)"
+              transition="all 0.3s"
+              _hover={{ transform: "translateY(-6px)" }}
             >
               LinkedIngest
             </Heading>
-            <Text fontSize="xl" color="gray.600">
+            <Text 
+              fontSize="xl" 
+              color="gray.600"
+              maxW="600px"
+              mx="auto"
+              lineHeight="tall"
+            >
               Transform LinkedIn profiles into LLM-friendly summaries
             </Text>
           </Box>
 
           <Box
-            bg="white"
+            bg="rgba(255, 255, 255, 0.9)"
             p={8}
-            borderRadius="2xl"
-            boxShadow="xl"
-            border="1px"
+            borderRadius="3xl"
+            boxShadow="2xl"
+            border="2px"
             borderColor="gray.100"
+            position="relative"
+            transition="all 0.3s"
+            _hover={{ transform: "translateY(-2px)", boxShadow: "2xl" }}
+            backdropFilter="blur(10px)"
           >
             <Tabs 
               variant="soft-rounded" 
-              colorScheme="blue" 
+              colorScheme="teal" 
               onChange={(index) => {
                 setActiveTab(index);
                 setSummary('');
               }}
               isLazy
             >
-              <TabList mb={4}>
-                <Tab fontWeight="medium" _selected={{ bg: 'blue.100' }}>LinkedIn URL</Tab>
-                <Tab fontWeight="medium" _selected={{ bg: 'blue.100' }}>PDF Upload</Tab>
+              <TabList mb={6} gap={4}>
+                <Tab 
+                  fontWeight="medium" 
+                  _selected={{ 
+                    bg: 'teal.100',
+                    color: 'teal.800',
+                    transform: 'translateY(-2px)',
+                    boxShadow: 'md'
+                  }}
+                  transition="all 0.2s"
+                  borderRadius="xl"
+                  px={6}
+                  py={3}
+                >
+                  LinkedIn URL
+                </Tab>
+                <Tab 
+                  fontWeight="medium" 
+                  _selected={{ 
+                    bg: 'teal.100',
+                    color: 'teal.800',
+                    transform: 'translateY(-2px)',
+                    boxShadow: 'md'
+                  }}
+                  transition="all 0.2s"
+                  borderRadius="xl"
+                  px={6}
+                  py={3}
+                >
+                  PDF Upload
+                </Tab>
               </TabList>
 
               <TabPanels>
@@ -187,8 +258,11 @@ function Home() {
                     bg="white"
                     borderWidth={2}
                     borderColor="gray.200"
-                    _hover={{ borderColor: "blue.300" }}
-                    _focus={{ borderColor: "blue.500", boxShadow: "outline" }}
+                    borderRadius="2xl"
+                    _hover={{ borderColor: "teal.300" }}
+                    _focus={{ borderColor: "teal.500", boxShadow: "0 0 0 3px rgba(45, 212, 191, 0.3)" }}
+                    fontSize="lg"
+                    p={6}
                   />
                 </TabPanel>
 
@@ -197,21 +271,36 @@ function Home() {
                     {...getRootProps()}
                     p={10}
                     border="3px dashed"
-                    borderColor={isDragActive ? 'blue.400' : file ? 'green.400' : 'gray.200'}
-                    borderRadius="xl"
+                    borderColor={isDragActive ? 'teal.400' : file ? 'green.400' : 'gray.200'}
+                    borderRadius="3xl"
                     textAlign="center"
-                    bg={isDragActive ? 'blue.50' : file ? 'green.50' : 'white'}
+                    bg={isDragActive ? 'teal.50' : file ? 'green.50' : 'white'}
                     cursor="pointer"
-                    transition="all 0.2s"
+                    transition="all 0.3s"
                     _hover={{ 
-                      borderColor: file ? 'green.500' : 'blue.400', 
-                      bg: file ? 'green.100' : 'blue.50' 
+                      borderColor: file ? 'green.500' : 'teal.400', 
+                      bg: file ? 'green.100' : 'teal.50',
+                      transform: 'translateY(-2px)',
+                      boxShadow: 'lg'
                     }}
                   >
                     <input {...getInputProps()} />
-                    <VStack spacing={3}>
-                      <FiUpload size={30} color={file ? '#38A169' : '#4299E1'} />
-                      <Text color={file ? 'green.600' : 'gray.600'} fontSize="lg" fontWeight="medium">
+                    <VStack spacing={4}>
+                      <Box
+                        p={4}
+                        borderRadius="full"
+                        bg={file ? 'green.100' : 'teal.100'}
+                        color={file ? 'green.500' : 'teal.500'}
+                        transition="all 0.3s"
+                      >
+                        <FiUpload size={40} />
+                      </Box>
+                      <Text 
+                        color={file ? 'green.600' : 'gray.600'} 
+                        fontSize="xl" 
+                        fontWeight="medium"
+                        maxW="300px"
+                      >
                         {file
                           ? `Selected: ${file.name}`
                           : isDragActive
@@ -225,7 +314,7 @@ function Home() {
             </Tabs>
 
             <Button
-              colorScheme="blue"
+              colorScheme="teal"
               size="lg"
               isLoading={isLoading}
               onClick={handleAnalyze}
@@ -233,10 +322,20 @@ function Home() {
               isDisabled={(activeTab === 0 && !url) || (activeTab === 1 && !file)}
               w="100%"
               mt={6}
-              py={7}
-              fontSize="lg"
-              boxShadow="md"
-              _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}
+              py={8}
+              fontSize="xl"
+              fontWeight="bold"
+              borderRadius="2xl"
+              boxShadow="lg"
+              _hover={{ 
+                transform: 'translateY(-2px)', 
+                boxShadow: '2xl',
+                bg: 'teal.500'
+              }}
+              _active={{
+                transform: 'translateY(1px)',
+                boxShadow: 'md'
+              }}
               transition="all 0.2s"
             >
               Analyze Profile
@@ -245,35 +344,55 @@ function Home() {
 
           {summary && (
             <Box
-              bg="white"
-              borderRadius="xl"
-              boxShadow="xl"
-              border="1px"
+              bg="rgba(255, 255, 255, 0.9)"
+              borderRadius="3xl"
+              boxShadow="2xl"
+              border="2px"
               borderColor="gray.100"
-              p={6}
+              p={8}
               position="relative"
+              transition="all 0.3s"
+              _hover={{ transform: "translateY(-2px)" }}
+              backdropFilter="blur(10px)"
             >
               <Textarea
                 value={summary}
                 readOnly
                 minH="300px"
-                p={4}
-                borderRadius="lg"
+                p={6}
+                borderRadius="2xl"
                 bg="gray.50"
-                fontSize="md"
+                fontSize="lg"
                 whiteSpace="pre-wrap"
                 borderColor="transparent"
                 _hover={{ borderColor: "transparent" }}
+                sx={{
+                  '&::-webkit-scrollbar': {
+                    width: '8px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                    borderRadius: '8px',
+                  },
+                }}
               />
               <Button
                 position="absolute"
-                top={4}
-                right={4}
-                colorScheme="blue"
+                top={6}
+                right={6}
+                colorScheme="teal"
                 variant="ghost"
                 leftIcon={<FiCopy />}
                 onClick={handleCopy}
-                size="sm"
+                size="md"
+                borderRadius="xl"
+                _hover={{
+                  bg: 'teal.100',
+                  transform: 'translateY(-1px)'
+                }}
+                transition="all 0.2s"
               >
                 Copy
               </Button>
