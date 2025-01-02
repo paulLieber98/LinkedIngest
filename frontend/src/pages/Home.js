@@ -100,19 +100,15 @@ function Home() {
       let response;
       const formData = new FormData();
       
-      // Use the deployed API URL
-      const API_BASE_URL = process.env.NODE_ENV === 'development' 
-        ? 'http://localhost:3000' 
-        : 'https://linkedingest-git-main-paul-liebers-projects.vercel.app';
+      // Use the current origin for API calls
+      const API_BASE_URL = window.location.origin;
 
       if (activeTab === 1 && file) {
         formData.append('file', file);
+        // For PDF upload, don't set Content-Type header, let browser set it with boundary
         response = await fetch(`${API_BASE_URL}/api/analyze_pdf`, {
           method: 'POST',
           body: formData,
-          headers: {
-            'Accept': 'application/json',
-          },
           mode: 'cors',
         });
       } else if (activeTab === 0 && url) {
@@ -122,7 +118,10 @@ function Home() {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
           },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ 
+            url: url.trim(),
+            context: null 
+          }),
           mode: 'cors',
         });
       }
@@ -132,11 +131,17 @@ function Home() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.detail || errorMessage;
+          console.error('API Error Response:', errorData);
         } catch (e) {
           console.error('Error parsing error response:', e);
-          // If we can't parse the error, check if it's a CORS issue
           if (response.status === 0) {
-            errorMessage = 'Network error. Please try again.';
+            errorMessage = 'Network error. Please check your connection and try again.';
+          } else if (response.status === 404) {
+            errorMessage = 'API endpoint not found. Please try again later.';
+          } else if (response.status === 413) {
+            errorMessage = 'File too large. Please upload a smaller PDF file.';
+          } else if (response.status === 403) {
+            errorMessage = 'Access denied. Please try uploading a PDF instead.';
           }
         }
         throw new Error(errorMessage);
