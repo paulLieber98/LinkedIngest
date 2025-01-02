@@ -3,28 +3,30 @@
 Turn any LinkedIn profile into an LLM-friendly summary for personalized outreach.
 
 ## Overview
-
-LinkedIngest is a web-based tool that streamlines professional networking by generating AI-powered summaries of LinkedIn profiles. Simply input a LinkedIn profile URL or PDF export, and get a concise, LLM-friendly summary perfect for crafting personalized outreach messages.
+LinkedIngest is a web-based tool that helps you create personalized outreach by converting LinkedIn profiles into digestible, AI-friendly summaries. Perfect for recruiters, job seekers, and networkers.
 
 ## Features
-
-- Profile data extraction from URLs or PDF exports
-- AI-powered summarization
-- Customizable tone and context
-- LLM-friendly output format
+- LinkedIn profile data extraction and summarization
+- LLM-friendly output generation
+- Customizable tone and context settings
 - Privacy-first design
 
 ## Tech Stack
-
-- Frontend: React.js
+- Frontend: Next.js (React)
 - Backend: FastAPI (Python)
-- AI: OpenAI GPT for summarization
-- Database: SQLite (for MVP)
+- Deployment: Replit
+- Domain: linkedingest.com
 
-## Setup
+## Local Development
 
-### Backend
+### Frontend Setup
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
+### Backend Setup
 ```bash
 cd backend
 python -m venv venv
@@ -33,18 +35,11 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
+## Environment Variables
+Create a `.env` file in the backend directory with:
+```
+OPENAI_API_KEY=your_key_here
 ```
 
-## Development Status
-
-🚧 Currently in active development 🚧
-
 ## License
-
-MIT License 
+MIT 
