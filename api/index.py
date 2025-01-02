@@ -123,12 +123,21 @@ def analyze_with_gpt(profile_text):
 @app.get("/api")
 async def root():
     """Root endpoint that handles both / and /api"""
-    return {
-        "message": "LinkedIngest API is running",
-        "version": "1.0.0",
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat()
-    }
+    response = JSONResponse(
+        content={
+            "message": "LinkedIngest API is running",
+            "version": "1.0.0",
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat()
+        },
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "Content-Type": "application/json"
+        }
+    )
+    return response
 
 @app.get("/api/health")
 async def health_check():
@@ -137,13 +146,22 @@ async def health_check():
         # Check if OpenAI API key is configured
         api_key_status = "configured" if openai.api_key else "not configured"
         
-        return {
-            "status": "healthy",
-            "timestamp": datetime.now().isoformat(),
-            "api_version": "1.0.0",
-            "openai_api": api_key_status,
-            "environment": os.getenv("VERCEL_ENV", "development")
-        }
+        response = JSONResponse(
+            content={
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat(),
+                "api_version": "1.0.0",
+                "openai_api": api_key_status,
+                "environment": os.getenv("VERCEL_ENV", "development")
+            },
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+                "Content-Type": "application/json"
+            }
+        )
+        return response
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
