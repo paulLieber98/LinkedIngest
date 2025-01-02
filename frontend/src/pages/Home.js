@@ -84,13 +84,24 @@ function Home() {
       return;
     }
 
+    if (!url && activeTab === 0) {
+      toast({
+        title: 'No URL provided',
+        description: 'Please enter a LinkedIn URL',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       let response;
       const formData = new FormData();
-      const API_BASE_URL = window.location.hostname === 'localhost' 
-        ? 'http://localhost:3000'
-        : 'https://linkedingest.com';
+      
+      // Use the current origin as the API base URL
+      const API_BASE_URL = window.location.origin;
 
       if (activeTab === 1 && file) {
         formData.append('file', file);
@@ -98,32 +109,38 @@ function Home() {
           method: 'POST',
           body: formData,
           headers: {
-            'Accept': 'application/json'
+            'Accept': 'application/json',
           },
-          mode: 'cors'
+          credentials: 'same-origin',
         });
       } else if (activeTab === 0 && url) {
         response = await fetch(`${API_BASE_URL}/api/analyze_url`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
           },
           body: JSON.stringify({ url }),
-          mode: 'cors'
+          credentials: 'same-origin',
         });
-      } else {
-        throw new Error(activeTab === 0 
-          ? 'Please provide a LinkedIn URL' 
-          : 'Please upload a PDF file');
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Failed to analyze profile' }));
-        throw new Error(errorData.detail || 'Failed to analyze profile');
+        let errorMessage = 'Failed to analyze profile';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+        } catch (e) {
+          console.error('Error parsing error response:', e);
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      if (!data.success || !data.summary) {
+        throw new Error('Invalid response from server');
+      }
+
       setSummary(data.summary);
       toast({
         title: 'Analysis Complete',

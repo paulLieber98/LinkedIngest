@@ -20,22 +20,28 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Add CORS middleware
+# Add CORS middleware with specific origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://linkedingest.com",
+        "https://www.linkedingest.com",
+        "http://localhost:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
-# Initialize OpenAI client
+# Initialize OpenAI client with error handling
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
     logger.error("OPENAI_API_KEY environment variable is not set")
+    raise ValueError("OpenAI API key is not configured")
 else:
     logger.info("OPENAI_API_KEY is configured")
-openai.api_key = api_key
+    openai.api_key = api_key
 
 class URLAnalysisRequest(BaseModel):
     url: str
@@ -211,7 +217,9 @@ async def analyze_url(request: URLAnalysisRequest):
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache',
         }
-        async with httpx.AsyncClient() as client:
+        
+        timeout = httpx.Timeout(30.0, connect=20.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(request.url, headers=headers, follow_redirects=True)
             if response.status_code == 999:
                 raise HTTPException(status_code=403, detail="LinkedIn has blocked the request. Please try uploading a PDF instead.")
@@ -222,14 +230,24 @@ async def analyze_url(request: URLAnalysisRequest):
         # Extract profile information
         profile_text = extract_profile_info(response.text)
         
+        if not profile_text or len(profile_text.strip()) < 10:
+            raise HTTPException(status_code=400, detail="Could not extract profile information. Please ensure the URL is accessible and try again.")
+        
         # Analyze with GPT
         summary = analyze_with_gpt(profile_text, request.context)
 
         logger.info("Successfully completed URL analysis")
-        return {
-            "success": True,
-            "summary": summary
-        }
+        return JSONResponse(
+            content={
+                "success": True,
+                "summary": summary
+            },
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
     except HTTPException as he:
         raise he
     except Exception as e:
@@ -248,21 +266,34 @@ async def analyze_pdf(
         if not file.filename.lower().endswith('.pdf'):
             raise HTTPException(status_code=400, detail="Please upload a PDF file")
         
-        # Read PDF content
+        # Read PDF content with size limit
         content = await file.read()
+        if len(content) > 10 * 1024 * 1024:  # 10MB limit
+            raise HTTPException(status_code=413, detail="PDF file too large. Maximum size is 10MB.")
+        
         logger.info(f"Successfully read PDF file, size: {len(content)} bytes")
         
         # Extract text from PDF
         text_content = extract_text_from_pdf(content)
         
+        if not text_content or len(text_content.strip()) < 10:
+            raise HTTPException(status_code=400, detail="Could not extract text from PDF. Please ensure it's a valid PDF with text content.")
+        
         # Analyze with GPT
         summary = analyze_with_gpt(text_content, context)
 
         logger.info("Successfully completed PDF analysis")
-        return {
-            "success": True,
-            "summary": summary
-        }
+        return JSONResponse(
+            content={
+                "success": True,
+                "summary": summary
+            },
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
     except HTTPException as he:
         raise he
     except Exception as e:
