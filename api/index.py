@@ -26,12 +26,15 @@ app.add_middleware(
     allow_origins=[
         "https://linkedingest.com",
         "https://www.linkedingest.com",
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "https://linkedingest-git-main-paul-liebers-projects.vercel.app",
+        "https://linkedingest-ggv9t1o0i-paul-liebers-projects.vercel.app"
     ],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
+    max_age=3600,
 )
 
 # Initialize OpenAI client with error handling
@@ -42,6 +45,15 @@ if not api_key:
 else:
     logger.info("OPENAI_API_KEY is configured")
     openai.api_key = api_key
+
+# Add more detailed logging
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Request: {request.method} {request.url}")
+    logger.info(f"Headers: {request.headers}")
+    response = await call_next(request)
+    logger.info(f"Response status: {response.status_code}")
+    return response
 
 class URLAnalysisRequest(BaseModel):
     url: str
@@ -243,6 +255,9 @@ async def analyze_url(request: URLAnalysisRequest):
                 "summary": summary
             },
             headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
                 "Expires": "0"
@@ -289,6 +304,9 @@ async def analyze_pdf(
                 "summary": summary
             },
             headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
                 "Expires": "0"

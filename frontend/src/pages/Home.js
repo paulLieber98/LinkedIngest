@@ -100,8 +100,10 @@ function Home() {
       let response;
       const formData = new FormData();
       
-      // Use the current origin as the API base URL
-      const API_BASE_URL = window.location.origin;
+      // Use the deployed API URL
+      const API_BASE_URL = process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:3000' 
+        : 'https://linkedingest-git-main-paul-liebers-projects.vercel.app';
 
       if (activeTab === 1 && file) {
         formData.append('file', file);
@@ -111,7 +113,7 @@ function Home() {
           headers: {
             'Accept': 'application/json',
           },
-          credentials: 'same-origin',
+          mode: 'cors',
         });
       } else if (activeTab === 0 && url) {
         response = await fetch(`${API_BASE_URL}/api/analyze_url`, {
@@ -121,7 +123,7 @@ function Home() {
             'Accept': 'application/json',
           },
           body: JSON.stringify({ url }),
-          credentials: 'same-origin',
+          mode: 'cors',
         });
       }
 
@@ -132,6 +134,10 @@ function Home() {
           errorMessage = errorData.detail || errorMessage;
         } catch (e) {
           console.error('Error parsing error response:', e);
+          // If we can't parse the error, check if it's a CORS issue
+          if (response.status === 0) {
+            errorMessage = 'Network error. Please try again.';
+          }
         }
         throw new Error(errorMessage);
       }
