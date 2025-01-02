@@ -17,7 +17,7 @@ import {
   Heading,
 } from '@chakra-ui/react';
 import { useDropzone } from 'react-dropzone';
-import { FiUpload, FiCopy, FiPlay, FiX } from 'react-icons/fi';
+import { FiUpload, FiCopy, FiPlay } from 'react-icons/fi';
 
 function Home() {
   const [url, setUrl] = useState('');
@@ -33,7 +33,7 @@ function Home() {
       setSummary('');
       toast({
         title: 'File uploaded',
-        description: `${acceptedFiles[0].name} is ready for analysis. Click 'Analyze Profile' to proceed.`,
+        description: `${acceptedFiles[0].name} is ready for analysis`,
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -47,15 +47,7 @@ function Home() {
       'application/pdf': ['.pdf'],
     },
     multiple: false,
-    noClick: false,
-    noKeyboard: false,
   });
-
-  const handleRemoveFile = (e) => {
-    e.stopPropagation();
-    setFile(null);
-    setSummary('');
-  };
 
   const handleAnalyze = async () => {
     if (!file && activeTab === 1) {
@@ -145,131 +137,151 @@ function Home() {
   };
 
   return (
-    <Container maxW="container.md" py={8}>
-      <VStack spacing={8} align="stretch">
-        <Box textAlign="center">
-          <Heading as="h1" size="2xl" mb={2} color="gray.800">
-            LinkedIngest
-          </Heading>
-          <Text fontSize="lg" color="gray.600">
-            Transform LinkedIn profiles into LLM-friendly summaries
-          </Text>
-        </Box>
-
-        <Tabs 
-          variant="enclosed" 
-          colorScheme="blue" 
-          onChange={(index) => {
-            setActiveTab(index);
-            setSummary('');
-          }}
-          isLazy
-        >
-          <TabList>
-            <Tab fontWeight="medium">LinkedIn URL</Tab>
-            <Tab fontWeight="medium">PDF Upload</Tab>
-          </TabList>
-
-          <TabPanels>
-            <TabPanel>
-              <Input
-                placeholder="Enter LinkedIn profile URL"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                size="lg"
-                bg="white"
-                borderColor="gray.300"
-                _hover={{ borderColor: "gray.400" }}
-              />
-            </TabPanel>
-
-            <TabPanel>
-              <Box
-                {...getRootProps()}
-                p={10}
-                border="2px dashed"
-                borderColor={isDragActive ? 'blue.400' : file ? 'green.400' : 'gray.200'}
-                borderRadius="lg"
-                textAlign="center"
-                bg={isDragActive ? 'blue.50' : file ? 'green.50' : 'white'}
-                cursor="pointer"
-                transition="all 0.2s"
-                _hover={{ 
-                  borderColor: file ? 'green.500' : 'blue.400', 
-                  bg: file ? 'green.100' : 'blue.50' 
-                }}
-                position="relative"
-                w="100%"
-              >
-                <input {...getInputProps()} />
-                <VStack spacing={3}>
-                  <FiUpload size={24} color={file ? '#38A169' : '#4299E1'} />
-                  <Text color={file ? 'green.600' : 'gray.600'} fontWeight="medium">
-                    {file
-                      ? `Selected: ${file.name}`
-                      : isDragActive
-                      ? 'Drop the PDF here'
-                      : 'Drag & drop a PDF or click to select'}
-                  </Text>
-                  {file && (
-                    <Button
-                      size="sm"
-                      colorScheme="red"
-                      variant="ghost"
-                      leftIcon={<FiX />}
-                      onClick={handleRemoveFile}
-                      mt={2}
-                    >
-                      Remove File
-                    </Button>
-                  )}
-                </VStack>
-              </Box>
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-
-        <Button
-          colorScheme="blue"
-          size="lg"
-          isLoading={isLoading}
-          onClick={handleAnalyze}
-          leftIcon={<FiPlay />}
-          isDisabled={(activeTab === 0 && !url) || (activeTab === 1 && !file)}
-          w="100%"
-        >
-          Analyze Profile
-        </Button>
-
-        {summary && (
-          <Box position="relative" bg="white" borderRadius="lg" boxShadow="sm" border="1px" borderColor="gray.200">
-            <Textarea
-              value={summary}
-              readOnly
-              minH="300px"
-              p={4}
-              borderRadius="lg"
-              bg="gray.50"
-              whiteSpace="pre-wrap"
-              borderColor="transparent"
-              _hover={{ borderColor: "transparent" }}
-            />
-            <Button
-              position="absolute"
-              top={2}
-              right={2}
-              size="sm"
-              colorScheme="blue"
-              variant="ghost"
-              leftIcon={<FiCopy />}
-              onClick={handleCopy}
+    <Box bg="gray.50" minH="100vh" py={12}>
+      <Container maxW="container.md">
+        <VStack spacing={8} align="stretch">
+          <Box textAlign="center" mb={8}>
+            <Heading 
+              as="h1" 
+              size="2xl" 
+              mb={4}
+              bgGradient="linear(to-r, blue.500, purple.500)"
+              bgClip="text"
             >
-              Copy
+              LinkedIngest
+            </Heading>
+            <Text fontSize="xl" color="gray.600">
+              Transform LinkedIn profiles into LLM-friendly summaries
+            </Text>
+          </Box>
+
+          <Box
+            bg="white"
+            p={8}
+            borderRadius="2xl"
+            boxShadow="xl"
+            border="1px"
+            borderColor="gray.100"
+          >
+            <Tabs 
+              variant="soft-rounded" 
+              colorScheme="blue" 
+              onChange={(index) => {
+                setActiveTab(index);
+                setSummary('');
+              }}
+              isLazy
+            >
+              <TabList mb={4}>
+                <Tab fontWeight="medium" _selected={{ bg: 'blue.100' }}>LinkedIn URL</Tab>
+                <Tab fontWeight="medium" _selected={{ bg: 'blue.100' }}>PDF Upload</Tab>
+              </TabList>
+
+              <TabPanels>
+                <TabPanel>
+                  <Input
+                    placeholder="Enter LinkedIn profile URL"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    size="lg"
+                    bg="white"
+                    borderWidth={2}
+                    borderColor="gray.200"
+                    _hover={{ borderColor: "blue.300" }}
+                    _focus={{ borderColor: "blue.500", boxShadow: "outline" }}
+                  />
+                </TabPanel>
+
+                <TabPanel>
+                  <Box
+                    {...getRootProps()}
+                    p={10}
+                    border="3px dashed"
+                    borderColor={isDragActive ? 'blue.400' : file ? 'green.400' : 'gray.200'}
+                    borderRadius="xl"
+                    textAlign="center"
+                    bg={isDragActive ? 'blue.50' : file ? 'green.50' : 'white'}
+                    cursor="pointer"
+                    transition="all 0.2s"
+                    _hover={{ 
+                      borderColor: file ? 'green.500' : 'blue.400', 
+                      bg: file ? 'green.100' : 'blue.50' 
+                    }}
+                  >
+                    <input {...getInputProps()} />
+                    <VStack spacing={3}>
+                      <FiUpload size={30} color={file ? '#38A169' : '#4299E1'} />
+                      <Text color={file ? 'green.600' : 'gray.600'} fontSize="lg" fontWeight="medium">
+                        {file
+                          ? `Selected: ${file.name}`
+                          : isDragActive
+                          ? 'Drop the PDF here'
+                          : 'Drag & drop a PDF or click to select'}
+                      </Text>
+                    </VStack>
+                  </Box>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
+
+            <Button
+              colorScheme="blue"
+              size="lg"
+              isLoading={isLoading}
+              onClick={handleAnalyze}
+              leftIcon={<FiPlay />}
+              isDisabled={(activeTab === 0 && !url) || (activeTab === 1 && !file)}
+              w="100%"
+              mt={6}
+              py={7}
+              fontSize="lg"
+              boxShadow="md"
+              _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}
+              transition="all 0.2s"
+            >
+              Analyze Profile
             </Button>
           </Box>
-        )}
-      </VStack>
-    </Container>
+
+          {summary && (
+            <Box
+              bg="white"
+              borderRadius="xl"
+              boxShadow="xl"
+              border="1px"
+              borderColor="gray.100"
+              p={6}
+              position="relative"
+            >
+              <Textarea
+                value={summary}
+                readOnly
+                minH="300px"
+                p={4}
+                borderRadius="lg"
+                bg="gray.50"
+                fontSize="md"
+                whiteSpace="pre-wrap"
+                borderColor="transparent"
+                _hover={{ borderColor: "transparent" }}
+              />
+              <Button
+                position="absolute"
+                top={4}
+                right={4}
+                colorScheme="blue"
+                variant="ghost"
+                leftIcon={<FiCopy />}
+                onClick={handleCopy}
+                size="sm"
+              >
+                Copy
+              </Button>
+            </Box>
+          )}
+        </VStack>
+      </Container>
+    </Box>
   );
 }
 
