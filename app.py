@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
-from openai import OpenAI
+import openai
 import PyPDF2
 import io
 
@@ -12,12 +12,12 @@ CORS(app)
 # Load environment variables
 load_dotenv()
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+# Set OpenAI API key
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 def generate_summary(profile_info):
     try:
-        completion = client.chat.completions.create(
+        completion = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that creates concise, professional summaries of LinkedIn profiles."},
