@@ -1,0 +1,9 @@
+flask==3.0.0
+python-dotenv==1.0.0
+requests==2.31.0
+openai==1.6.1
+gunicorn==21.2.0
+flask-cors==4.0.0
+python-linkedin-v2==0.9.4
+beautifulsoup4==4.12.2
+PyPDF2==3.0.1 

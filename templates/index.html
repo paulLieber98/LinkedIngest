@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIngest - LinkedIn Profile Summarizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-blue-600 mb-2">LinkedIngest</h1>
+            <p class="text-gray-600">Turn any LinkedIn profile into an LLM-friendly summary</p>
+        </header>
+
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
+            <!-- Tabs -->
+            <div class="mb-8">
+                <div class="flex border-b">
+                    <button onclick="switchTab('url')" id="urlTab" class="px-6 py-2 font-medium text-gray-600 border-b-2 border-blue-500">URL Analysis</button>
+                    <button onclick="switchTab('pdf')" id="pdfTab" class="px-6 py-2 font-medium text-gray-600">PDF Upload</button>
+                </div>
+            </div>
+
+            <!-- URL Form -->
+            <form id="urlForm" class="space-y-6">
+                <div>
+                    <label for="profileUrl" class="block text-sm font-medium text-gray-700 mb-2">
+                        LinkedIn Profile URL
+                    </label>
+                    <input type="url" id="profileUrl" name="profileUrl" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="https://www.linkedin.com/in/username">
+                </div>
+                <button type="submit"
+                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200">
+                    Analyze Profile
+                </button>
+            </form>
+
+            <!-- PDF Form -->
+            <form id="pdfForm" class="space-y-6 hidden">
+                <div>
+                    <label for="profilePdf" class="block text-sm font-medium text-gray-700 mb-2">
+                        Upload LinkedIn Profile PDF
+                    </label>
+                    <input type="file" id="profilePdf" name="profilePdf" accept=".pdf" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    <p class="mt-2 text-sm text-gray-500">Export your LinkedIn profile as PDF and upload it here</p>
+                </div>
+                <button type="submit"
+                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200">
+                    Analyze PDF
+                </button>
+            </form>
+
+            <div id="result" class="mt-8 hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Profile Summary</h2>
+                    <button onclick="copyAll()"
+                        class="px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition">
+                        Copy All
+                    </button>
+                </div>
+                
+                <!-- Structured Summary -->
+                <div id="summaryContent" class="bg-gray-50 p-4 rounded-md mb-4">
+                </div>
+
+                <!-- Chatbot-Friendly Summary -->
+                <div id="chatbotSummary" class="mt-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-lg font-medium">Chatbot-Friendly Summary</h3>
+                        <button onclick="copyToClipboard('chatbotPrompt')"
+                            class="px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition">
+                            Copy
+                        </button>
+                    </div>
+                    <div id="chatbotPrompt" class="bg-gray-50 p-4 rounded-md whitespace-pre-wrap"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyAll() {
+            const summaryContent = document.getElementById('summaryContent').innerText;
+            const chatbotPrompt = document.getElementById('chatbotPrompt').innerText;
+            const allContent = `Profile Summary:\n${summaryContent}\n\nChatbot-Friendly Summary:\n${chatbotPrompt}`;
+            
+            navigator.clipboard.writeText(allContent).then(() => {
+                alert('All content copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+
+        function switchTab(tab) {
+            // Update tab styles
+            document.getElementById('urlTab').classList.remove('border-blue-500');
+            document.getElementById('pdfTab').classList.remove('border-blue-500');
+            document.getElementById(tab + 'Tab').classList.add('border-blue-500');
+
+            // Show/hide forms
+            document.getElementById('urlForm').classList.toggle('hidden', tab !== 'url');
+            document.getElementById('pdfForm').classList.toggle('hidden', tab !== 'pdf');
+
+            // Hide result when switching tabs
+            document.getElementById('result').classList.add('hidden');
+        }
+
+        document.getElementById('urlForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const url = document.getElementById('profileUrl').value;
+            const resultDiv = document.getElementById('result');
+            const summaryContent = document.getElementById('summaryContent');
+            const chatbotPrompt = document.getElementById('chatbotPrompt');
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url }),
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    resultDiv.classList.remove('hidden');
+                    summaryContent.innerHTML = `
+                        <p><strong>Name:</strong> ${data.name}</p>
+                        <p><strong>Current Role:</strong> ${data.current_role}</p>
+                        <p><strong>Company:</strong> ${data.company}</p>
+                        <p><strong>Summary:</strong> ${data.summary}</p>
+                    `;
+                    chatbotPrompt.innerText = data.chatbot_prompt || data.summary;
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+
+        document.getElementById('pdfForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = document.getElementById('profilePdf').files[0];
+            const resultDiv = document.getElementById('result');
+            const summaryContent = document.getElementById('summaryContent');
+            const chatbotPrompt = document.getElementById('chatbotPrompt');
+
+            if (!file) {
+                alert('Please select a PDF file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('pdf', file);
+
+            try {
+                const response = await fetch('/api/analyze-pdf', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    resultDiv.classList.remove('hidden');
+                    summaryContent.innerHTML = `
+                        <p><strong>Name:</strong> ${data.name}</p>
+                        <p><strong>Current Role:</strong> ${data.current_role}</p>
+                        <p><strong>Company:</strong> ${data.company}</p>
+                        <p><strong>Summary:</strong> ${data.summary}</p>
+                    `;
+                    chatbotPrompt.innerText = data.chatbot_prompt || data.summary;
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html> 
